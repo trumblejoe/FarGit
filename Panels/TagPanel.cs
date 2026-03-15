@@ -26,7 +26,8 @@ public class TagPanel : BasePanel
 		SetView(plan0);
 
 		SetKeyBars([
-			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Show", "View tagged commit diff"),
+			new KeyBar(KeyCode.F2, ControlKeyStates.None, "Menu",   "Panel actions"),
+			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Show",   "View tagged commit diff"),
 			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Create", "Create new tag on HEAD"),
 			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Delete", "Delete tag"),
 		]);
@@ -106,10 +107,14 @@ public class TagPanel : BasePanel
 
 	internal override void AddMenu(IMenu menu)
 	{
-		menu.Add(Const.TagShow, (_, _) => ShowTaggedCommit());
+		menu.Add(Const.TagShow,   (_, _) => ShowTaggedCommit());
+		menu.Add(string.Empty).IsSeparator = true;
 		menu.Add(Const.TagCreate, (_, _) => CreateTag());
 		if (CurrentFile is not null)
+		{
+			menu.Add(string.Empty).IsSeparator = true;
 			menu.Add(Const.TagDelete, (_, _) => DeleteTag([CurrentFile]));
+		}
 	}
 
 	public override void UIOpenFile(FarFile file)

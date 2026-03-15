@@ -27,8 +27,10 @@ public class BranchPanel : BasePanel
 		SetView(plan0);
 
 		SetKeyBars([
+			new KeyBar(KeyCode.F2, ControlKeyStates.None, "Menu",   "Panel actions"),
 			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Switch", "Switch to this branch"),
-			new KeyBar(KeyCode.F5, ControlKeyStates.None, "Merge", "Merge into current branch"),
+			new KeyBar(KeyCode.F4, ControlKeyStates.None, "Rename", "Rename branch"),
+			new KeyBar(KeyCode.F5, ControlKeyStates.None, "Merge",  "Merge into current branch"),
 			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Create", "Create new branch"),
 			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Delete", "Delete branch"),
 		]);
@@ -70,6 +72,42 @@ public class BranchPanel : BasePanel
 				"Tip: Stage and commit your changes first, or stash them\n" +
 				"(Dashboard → Stash or Guide Me → Set work aside).",
 				Const.ModuleName, MessageOptions.Warning);
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Rename ────────────────────────────────────────────────────────────
+
+	void RenameCurrent()
+	{
+		var f = CurrentBranch;
+		if (f is null) return;
+		if (f.IsRemote)
+		{
+			Far.Api.Message("Cannot rename remote-tracking branches.", Const.ModuleName);
+			return;
+		}
+		if (f.IsCurrent)
+		{
+			// Renaming the current branch is allowed — HEAD will follow
+		}
+
+		var newName = Far.Api.Input(
+			$"New name for branch '{f.BranchName}':",
+			"FarGit-branch-rename",
+			"Rename Branch",
+			f.BranchName);
+		if (string.IsNullOrWhiteSpace(newName) || newName.Trim() == f.BranchName) return;
+		newName = newName.Trim();
+
+		try
+		{
+			using var repo = UseRepository();
+			repo.Branches.Rename(f.BranchName, newName);
+			Update(true); Redraw();
 		}
 		catch (Exception ex)
 		{
@@ -214,6 +252,7 @@ public class BranchPanel : BasePanel
 		menu.Add(Const.BranchMerge,    (_, _) => MergeCurrent());
 		menu.Add(string.Empty).IsSeparator = true;
 		menu.Add(Const.BranchCreate,   (_, _) => CreateBranch());
+		menu.Add(Const.BranchRename,   (_, _) => RenameCurrent());
 		menu.Add(Const.BranchDelete,   (_, _) => DeleteCurrent());
 	}
 
@@ -228,6 +267,9 @@ public class BranchPanel : BasePanel
 		{
 			case KeyCode.F3 when key.Is():
 				CheckoutCurrent();
+				return true;
+			case KeyCode.F4 when key.Is():
+				RenameCurrent();
 				return true;
 			case KeyCode.F5 when key.Is():
 				MergeCurrent();

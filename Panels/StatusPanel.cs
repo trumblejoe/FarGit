@@ -34,13 +34,14 @@ public class StatusPanel : BasePanel
 		SetView(plan0);
 
 		SetKeyBars([
-			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Diff", "View diff patch"),
-			new KeyBar(KeyCode.F4, ControlKeyStates.None, "Edit", "Edit file in editor"),
-			new KeyBar(KeyCode.F5, ControlKeyStates.None, "Stage", "Stage selected/current"),
-			new KeyBar(KeyCode.F6, ControlKeyStates.None, "Unstage", "Unstage selected/current"),
-			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Commit", "Commit staged changes"),
-			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Revert!", "Revert changes (cannot undo)"),
-			new KeyBar(KeyCode.F7, ControlKeyStates.ShiftPressed, "Amend", "Amend last commit"),
+			new KeyBar(KeyCode.F2, ControlKeyStates.None,         "Menu",    "Panel actions"),
+			new KeyBar(KeyCode.F3, ControlKeyStates.None,         "Diff",    "View diff patch"),
+			new KeyBar(KeyCode.F4, ControlKeyStates.None,         "Edit",    "Edit file in editor"),
+			new KeyBar(KeyCode.F5, ControlKeyStates.None,         "Stage",   "Stage selected/current"),
+			new KeyBar(KeyCode.F6, ControlKeyStates.None,         "Unstage", "Unstage selected/current"),
+			new KeyBar(KeyCode.F7, ControlKeyStates.None,         "Commit",  "Commit staged changes"),
+			new KeyBar(KeyCode.F8, ControlKeyStates.None,         "Revert!", "Revert changes (cannot undo)"),
+			new KeyBar(KeyCode.F7, ControlKeyStates.ShiftPressed, "Amend",   "Amend last commit"),
 		]);
 	}
 
@@ -171,6 +172,8 @@ public class StatusPanel : BasePanel
 			LibGit2Sharp.Commands.Unstage(repo, "*");
 			Update(true); Redraw();
 		});
+		menu.Add(string.Empty).IsSeparator = true;
+		menu.Add(Const.RevertFiles, (_, _) => RevertSelected());
 		menu.Add(string.Empty).IsSeparator = true;
 		menu.Add(Const.MenuCommit, (_, _) => OpenCommit(false));
 		menu.Add(Const.MenuAmend, (_, _) => OpenCommit(true));

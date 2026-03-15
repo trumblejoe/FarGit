@@ -81,6 +81,20 @@ public class DashboardPanel : BasePanel
 		}
 	}
 
+	void QuickPull()
+	{
+		try
+		{
+			var output = Commands.RemoteOps.Pull(GitDir);
+			Update(true); Redraw();
+			Far.Api.Message(output, "Pull");
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
 	// --- Menu / key handling -----------------------------------------------
 
 	internal override void AddMenu(IMenu menu)
@@ -95,10 +109,12 @@ public class DashboardPanel : BasePanel
 		menu.Add(Const.MenuStash,     (_, _) => OpenStash());
 		menu.Add(Const.MenuTags,      (_, _) => OpenTags());
 		menu.Add(string.Empty).IsSeparator = true;
+		menu.Add(Const.StageAll,      (_, _) => StageAll());
 		menu.Add(Const.MenuCommit,    (_, _) => OpenCommit(false));
 		menu.Add(Const.MenuAmend,     (_, _) => OpenCommit(true));
 		menu.Add(string.Empty).IsSeparator = true;
-		menu.Add(Const.StageAll,      (_, _) => StageAll());
+		menu.Add(Const.RemotePush,    (_, _) => QuickPush());
+		menu.Add(Const.RemotePull,    (_, _) => QuickPull());
 	}
 
 	void NavigateSection(DashboardSection section)

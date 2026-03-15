@@ -27,7 +27,9 @@ public class CommitPanel : BasePanel
 		SetView(plan0);
 
 		SetKeyBars([
-			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Diff", "View changes introduced by this commit"),
+			new KeyBar(KeyCode.F2, ControlKeyStates.None, "Menu",   "Panel actions"),
+			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Diff",   "View changes introduced by this commit"),
+			new KeyBar(KeyCode.F9, ControlKeyStates.None, "Revert", "Create a new commit that undoes this one"),
 		]);
 	}
 
@@ -95,11 +97,105 @@ public class CommitPanel : BasePanel
 		}
 	}
 
+	// ── Create branch from commit ─────────────────────────────────────────
+
+	void CreateBranchHere()
+	{
+		if (CurrentFile is not CommitFile f) return;
+
+		var sha7 = f.Sha[..7];
+		var name = Far.Api.Input(
+			$"New branch name (starting at commit {sha7}):",
+			"FarGit-branch",
+			"Create Branch from Commit");
+		if (string.IsNullOrWhiteSpace(name)) return;
+		name = name.Trim();
+
+		try
+		{
+			using var repo = UseRepository();
+			var commit = repo.Lookup<Commit>(f.Sha)
+				?? throw new Exception($"Commit {sha7} not found.");
+			repo.CreateBranch(name, commit);
+			Update(true); Redraw();
+			Far.Api.Message($"Branch '{name}' created at {sha7}.", Const.ModuleName);
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Tag this commit ───────────────────────────────────────────────────
+
+	void TagHere()
+	{
+		if (CurrentFile is not CommitFile f) return;
+
+		var sha7 = f.Sha[..7];
+		var name = Far.Api.Input(
+			$"Tag name for commit {sha7}:",
+			"FarGit-tag",
+			"Tag Commit");
+		if (string.IsNullOrWhiteSpace(name)) return;
+		name = name.Trim();
+
+		try
+		{
+			using var repo = UseRepository();
+			repo.ApplyTag(name, f.Sha);
+			Update(true); Redraw();
+			Far.Api.Message($"Tag '{name}' created on {sha7}.", Const.ModuleName);
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Revert ────────────────────────────────────────────────────────────
+
+	void RevertCommit()
+	{
+		if (CurrentFile is not CommitFile f) return;
+
+		var sha7 = f.Sha[..7];
+		// Strip the "abc1234  " prefix that CommitFile.Name includes
+		var msg  = f.Name.Length > 9 ? f.Name[9..] : f.Name;
+
+		if (0 != Far.Api.Message(
+			$"Revert commit {sha7}?\n\n" +
+			$"  \"{msg}\"\n\n" +
+			"This creates a NEW commit that undoes the changes\n" +
+			"from the selected commit. Your history is preserved\n" +
+			"and it is safe even for already-pushed commits.\n\n" +
+			"If this isn't the last commit, git may ask you to\n" +
+			"resolve conflicts first.",
+			"Revert Commit", MessageOptions.YesNo))
+			return;
+
+		try
+		{
+			var output = Commands.RemoteOps.Revert(GitDir, f.Sha);
+			Update(true); Redraw();
+			Far.Api.Message(output, $"Reverted {sha7}");
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
 	// ── Menu / key handling ───────────────────────────────────────────────
 
 	internal override void AddMenu(IMenu menu)
 	{
-		menu.Add("&View commit diff", (_, _) => ShowCommitDiff());
+		menu.Add("&View commit diff",          (_, _) => ShowCommitDiff());
+		menu.Add(string.Empty).IsSeparator = true;
+		menu.Add("&Create branch from here...", (_, _) => CreateBranchHere());
+		menu.Add("&Tag this commit...",          (_, _) => TagHere());
+		menu.Add(string.Empty).IsSeparator = true;
+		menu.Add("Re&vert this commit",          (_, _) => RevertCommit());
 	}
 
 	public override void UIOpenFile(FarFile file)
@@ -113,6 +209,9 @@ public class CommitPanel : BasePanel
 		{
 			case KeyCode.F3 when key.Is():
 				ShowCommitDiff();
+				return true;
+			case KeyCode.F9 when key.Is():
+				RevertCommit();
 				return true;
 		}
 		return base.UIKeyPressed(key);

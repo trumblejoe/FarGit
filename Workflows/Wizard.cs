@@ -17,6 +17,7 @@ static class Wizard
 		menu.Title = "Git Guide  —  What do you want to do?";
 		menu.Add("Save my changes  (stage + commit)");
 		menu.Add("Undo changes to a file");
+		menu.Add("Undo my last commit");
 		menu.Add("Set work aside temporarily  (stash)");
 		menu.Add("Mark a release version  (tag)");
 		menu.Add("See what has changed  (status)");
@@ -28,23 +29,26 @@ static class Wizard
 		menu.Add("Get latest changes from remote  (pull)");
 		menu.Add("Share my work  (push)");
 		menu.Add("Get a copy of a repository  (clone)");
+		menu.Add("Connect this repo to a remote  (add remote)");
 
 		if (!menu.Show()) return;
 
 		switch (menu.Selected)
 		{
-			case 0:  SaveChanges(gitDir, panel);   break;
-			case 1:  UndoChanges(gitDir, panel);   break;
-			case 2:  StashWork(gitDir, panel);      break;
-			case 3:  MarkVersion(gitDir, panel);    break;
-			case 4:  ReviewStatus(gitDir, panel);   break;
-			// separators are 5 and 9 and 13 — Selected skips them
-			case 6:  CreateBranch(gitDir, panel);   break;
-			case 7:  SwitchBranch(gitDir, panel);   break;
-			case 8:  MergeBranch(gitDir, panel);    break;
-			case 10: PullLatest(gitDir, panel);     break;
-			case 11: PushWork(gitDir, panel);       break;
-			case 12: CloneRepo(panel);              break;
+			case 0:  SaveChanges(gitDir, panel);      break;
+			case 1:  UndoChanges(gitDir, panel);      break;
+			case 2:  UndoLastCommit(gitDir, panel);   break;
+			case 3:  StashWork(gitDir, panel);         break;
+			case 4:  MarkVersion(gitDir, panel);       break;
+			case 5:  ReviewStatus(gitDir, panel);      break;
+			// separators are 6 and 10 — Selected skips them
+			case 7:  CreateBranch(gitDir, panel);      break;
+			case 8:  SwitchBranch(gitDir, panel);      break;
+			case 9:  MergeBranch(gitDir, panel);       break;
+			case 11: PullLatest(gitDir, panel);        break;
+			case 12: PushWork(gitDir, panel);          break;
+			case 13: CloneRepo(panel);                 break;
+			case 14: ConnectToRemote(gitDir, panel);   break;
 		}
 	}
 
@@ -160,7 +164,62 @@ static class Wizard
 		new Panels.StatusExplorer(gitDir).CreatePanel().OpenChild(panel);
 	}
 
-	// ── Workflow 3: Stash Work ───────────────────────────────────────────────
+	// ── Workflow 3: Undo Last Commit ─────────────────────────────────────────
+
+	static void UndoLastCommit(string gitDir, Panels.DashboardPanel panel)
+	{
+		string sha7, msg, branch;
+		bool hasRemote;
+		using (var repo = new Repository(gitDir))
+		{
+			if (repo.Head.Tip is null)
+			{
+				Info("There are no commits to undo.");
+				return;
+			}
+			sha7      = repo.Head.Tip.Sha[..7];
+			msg       = repo.Head.Tip.MessageShort;
+			branch    = repo.Head.FriendlyName;
+			hasRemote = repo.Head.IsTracking;
+		}
+
+		var warning = hasRemote
+			? "⚠ Your branch is linked to a remote.\n" +
+			  "Only do this if you have NOT pushed this commit yet!\n" +
+			  "Undoing a pushed commit causes problems for anyone\n" +
+			  "who already pulled it.\n\n"
+			: "";
+
+		if (!Step(
+			"UNDO MY LAST COMMIT\n\n" +
+			"This removes the last commit from the history of\n" +
+			$"'{branch}', but KEEPS all the file changes staged\n" +
+			"so you can edit and re-commit them.\n\n" +
+			"Think of it as 'unpacking' the commit back into\n" +
+			"your working area.\n\n" +
+			$"{warning}" +
+			$"Last commit:  {sha7}  \"{msg}\"\n\n" +
+			"Press Continue to undo it."))
+			return;
+
+		try
+		{
+			Commands.RemoteOps.ResetSoft(gitDir);
+
+			Info($"Done! Commit {sha7} has been undone.\n\n" +
+			     "Your file changes are still here — staged and ready.\n" +
+			     "You can edit them and commit again when you're ready.");
+
+			panel.Update(true);
+			panel.Redraw();
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Workflow 4: Stash Work ───────────────────────────────────────────────
 
 	static void StashWork(string gitDir, Panels.DashboardPanel panel)
 	{
@@ -628,7 +687,7 @@ static class Wizard
 
 	// ── Workflow 11: Clone Repository ────────────────────────────────────────
 
-	static void CloneRepo(Panels.DashboardPanel panel)
+	public static void CloneRepo(Panels.DashboardPanel? panel)
 	{
 		if (!Step(
 			"GET A COPY OF A REPOSITORY  (Clone)\n\n" +
@@ -653,7 +712,7 @@ static class Wizard
 
 		var defaultDir = Far.Api.CurrentDirectory;
 		var localPath = Far.Api.Input(
-			$"Local destination folder:\n(repository will be cloned into a subfolder here)",
+			"Local destination folder:\n(repository will be cloned into a subfolder here)",
 			"FarGit-clone-path",
 			"Clone Repository") ?? defaultDir;
 
@@ -663,11 +722,184 @@ static class Wizard
 		{
 			var result = Commands.RemoteOps.Clone(url.Trim(), localPath.Trim());
 
-			Info($"Clone complete!\n\n" +
-			     $"Repository cloned to:\n{result}\n\n" +
-			     $"To open it in FarGit:\n" +
-			     $"  1. Navigate to the cloned folder in FAR\n" +
-			     $"  2. Press F11 and open FarGit");
+			if (0 == Far.Api.Message(
+				$"Clone complete!\n\nRepository cloned to:\n{result}\n\nOpen it in FarGit now?",
+				"Clone Repository", (MessageOptions)0, ["Open", "Later"]))
+			{
+				var gitDir = Lib.GetGitDir(result);
+				new Panels.DashboardExplorer(gitDir).CreatePanel().Open();
+			}
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Workflow 12: Connect to Remote ───────────────────────────────────────
+
+	static void ConnectToRemote(string gitDir, Panels.DashboardPanel panel)
+	{
+		List<string> existingRemotes;
+		string folderName;
+		using (var repo = new Repository(gitDir))
+		{
+			existingRemotes = repo.Network.Remotes.Select(r => r.Name).ToList();
+			folderName = Path.GetFileName(
+				repo.Info.WorkingDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+		}
+
+		var intro = existingRemotes.Count == 0
+			? "CONNECT THIS REPO TO A REMOTE\n\n" +
+			  "A 'remote' is a copy of your repo on a hosting service like\n" +
+			  "GitHub, GitLab, or Azure DevOps.\n\n" +
+			  "Connecting lets you:\n" +
+			  "  • Back up your work online\n" +
+			  "  • Share code with teammates\n" +
+			  "  • Access your code from any machine\n\n" +
+			  "Press Continue to choose how to connect."
+			: "ADD ANOTHER REMOTE\n\n" +
+			  $"You already have {existingRemotes.Count} remote(s) connected:\n" +
+			  string.Join("\n", existingRemotes.Select(r => $"  • {r}")) + "\n\n" +
+			  "Press Continue to add another, or Cancel to stop.";
+
+		if (!Step(intro)) return;
+
+		var methodMenu = Far.Api.CreateMenu();
+		methodMenu.Title = "How do you want to connect?";
+		methodMenu.Add("Create a new repo on GitHub for me");
+		methodMenu.Add("I already have a repo — enter its URL");
+		if (!methodMenu.Show()) return;
+
+		if (methodMenu.Selected == 0)
+			ConnectViaGitHub(gitDir, folderName, panel);
+		else
+			ConnectViaUrl(gitDir, panel);
+	}
+
+	static void ConnectViaGitHub(string gitDir, string suggestedName, Panels.DashboardPanel panel)
+	{
+		// ── Get or prompt for GitHub PAT ─────────────────────────────────────
+		var stored = Commands.Credentials.Get("github.com");
+		string pat;
+
+		if (stored is { } creds)
+		{
+			pat = creds.Token;
+		}
+		else
+		{
+			if (!Step(
+				"GITHUB PERSONAL ACCESS TOKEN\n\n" +
+				"To create a GitHub repo, FarGit needs a Personal Access Token (PAT).\n\n" +
+				"How to create one:\n" +
+				"  1. Open github.com → click your avatar → Settings\n" +
+				"  2. Scroll to Developer settings (bottom of left sidebar)\n" +
+				"  3. Personal access tokens → Tokens (classic)\n" +
+				"  4. Generate new token (classic)\n" +
+				"  5. Give it a name, check the 'repo' scope, click Generate\n" +
+				"  6. Copy the token  (starts with 'ghp_')\n\n" +
+				"FarGit will save it encrypted so you only need to do this once.\n\n" +
+				"Press Continue to enter your token."))
+				return;
+
+			pat = Far.Api.Input(
+				"GitHub Personal Access Token  (starts with 'ghp_'):",
+				"FarGit-github-pat",
+				"GitHub Token") ?? "";
+			if (string.IsNullOrWhiteSpace(pat)) return;
+			pat = pat.Trim();
+
+			// Validate PAT and save with returned username
+			try
+			{
+				var username = Commands.GitHubApi.GetUsername(pat);
+				Commands.Credentials.Set("github.com", username, pat);
+			}
+			catch (Exception ex)
+			{
+				Far.Api.Message(
+					$"Could not verify token:\n\n{ex.Message}\n\n" +
+					"Double-check that you copied the full token and that it has 'repo' scope.",
+					Const.ModuleName, MessageOptions.Warning);
+				return;
+			}
+		}
+
+		// ── Ask for repo details ──────────────────────────────────────────────
+		var repoName = Far.Api.Input(
+			"Repository name on GitHub:",
+			"FarGit-github-repo-name",
+			"Create GitHub Repo",
+			suggestedName);
+		if (string.IsNullOrWhiteSpace(repoName)) return;
+		repoName = repoName.Trim();
+
+		var visMenu = Far.Api.CreateMenu();
+		visMenu.Title = "Repository visibility:";
+		visMenu.Add("Public  (anyone can see it)");
+		visMenu.Add("Private  (only you and collaborators)");
+		if (!visMenu.Show()) return;
+		var isPrivate = visMenu.Selected == 1;
+
+		// ── Create repo, wire up remote, offer to push ────────────────────────
+		try
+		{
+			var cloneUrl = Commands.GitHubApi.CreateRepo(pat, repoName, isPrivate);
+
+			using (var repo = new Repository(gitDir))
+				repo.Network.Remotes.Add("origin", cloneUrl);
+
+			if (0 == Far.Api.Message(
+				$"'{repoName}' created on GitHub!\n\n{cloneUrl}\n\nPush local commits now?",
+				"GitHub Repo Created", (MessageOptions)0, ["Push now", "Later"]))
+			{
+				var output = Commands.RemoteOps.Push(gitDir, "origin");
+				Info($"Push complete!\n\n{output}");
+			}
+
+			panel.Update(true);
+			panel.Redraw();
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	static void ConnectViaUrl(string gitDir, Panels.DashboardPanel panel)
+	{
+		var remoteName = Far.Api.Input(
+			"Remote name  (use 'origin' if this is your main server):",
+			"FarGit-remote-name",
+			"Connect to Remote");
+		if (string.IsNullOrWhiteSpace(remoteName)) return;
+		remoteName = remoteName.Trim();
+
+		var url = Far.Api.Input(
+			$"URL for '{remoteName}':\n(e.g. https://github.com/you/your-repo.git)",
+			"FarGit-remote-url",
+			"Connect to Remote");
+		if (string.IsNullOrWhiteSpace(url)) return;
+		url = url.Trim();
+
+		try
+		{
+			using (var repo = new Repository(gitDir))
+				repo.Network.Remotes.Add(remoteName, url);
+
+			if (0 == Far.Api.Message(
+				$"Remote '{remoteName}' connected!\n\n{url}\n\n" +
+				"Push local commits now?\n" +
+				"(If credentials are needed, git will prompt you.)",
+				"Connect to Remote", (MessageOptions)0, ["Push now", "Later"]))
+			{
+				var output = Commands.RemoteOps.Push(gitDir, remoteName);
+				Info($"Push complete!\n\n{output}");
+			}
+
+			panel.Update(true);
+			panel.Redraw();
 		}
 		catch (Exception ex)
 		{

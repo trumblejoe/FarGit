@@ -27,11 +27,12 @@ public class StashPanel : BasePanel
 		SetView(plan0);
 
 		SetKeyBars([
-			new KeyBar(KeyCode.F5, ControlKeyStates.None, "Apply", "Apply stash (keep it)"),
-			new KeyBar(KeyCode.F6, ControlKeyStates.None, "Pop", "Apply and drop stash"),
+			new KeyBar(KeyCode.F2, ControlKeyStates.None, "Menu",   "Panel actions"),
+			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Show",   "View stash contents"),
+			new KeyBar(KeyCode.F5, ControlKeyStates.None, "Apply",  "Apply stash (keep it)"),
+			new KeyBar(KeyCode.F6, ControlKeyStates.None, "Pop",    "Apply and drop stash"),
 			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Create", "Save current changes as stash"),
-			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Drop", "Delete stash"),
-			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Show", "View stash contents"),
+			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Drop",   "Delete stash"),
 		]);
 	}
 
@@ -130,11 +131,13 @@ public class StashPanel : BasePanel
 
 	internal override void AddMenu(IMenu menu)
 	{
-		menu.Add(Const.StashApply, (_, _) => ApplyStash());
-		menu.Add(Const.StashPop, (_, _) => PopStash());
-		menu.Add(Const.StashDrop, (_, _) => DropStash());
+		menu.Add(Const.StashShow,   (_, _) => ShowContents());
+		menu.Add(string.Empty).IsSeparator = true;
+		menu.Add(Const.StashApply,  (_, _) => ApplyStash());
+		menu.Add(Const.StashPop,    (_, _) => PopStash());
+		menu.Add(string.Empty).IsSeparator = true;
 		menu.Add(Const.StashCreate, (_, _) => CreateStash());
-		menu.Add(Const.StashShow, (_, _) => ShowContents());
+		menu.Add(Const.StashDrop,   (_, _) => DropStash());
 	}
 
 	public override void UIOpenFile(FarFile file)

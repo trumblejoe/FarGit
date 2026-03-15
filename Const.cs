@@ -13,12 +13,13 @@ static class Const
 	public const string MenuAmend = "&Amend commit...";
 
 	// Status panel
-	public const string StageFile = "&Stage";
+	public const string StageFile   = "&Stage";
 	public const string UnstageFile = "&Unstage";
-	public const string StageAll = "Stage &all";
-	public const string UnstageAll = "Unstage &all";
-	public const string EditFile = "&Edit file";
-	public const string DiffFile = "&Diff file";
+	public const string StageAll    = "Stage &all";
+	public const string UnstageAll  = "Unstage &all";
+	public const string EditFile    = "&Edit file";
+	public const string DiffFile    = "&Diff file";
+	public const string RevertFiles = "Re&vert files";
 
 	// Stash panel
 	public const string StashApply = "&Apply";
@@ -36,12 +37,12 @@ static class Const
 	public const string MenuHistory = "Commit &History";
 
 	// Branch panel
-	public const string MenuBranches  = "&Branches";
+	public const string MenuBranches   = "&Branches";
 	public const string BranchCheckout = "&Switch to branch";
 	public const string BranchCreate   = "&Create branch...";
+	public const string BranchRename   = "Re&name branch...";
 	public const string BranchMerge    = "&Merge into current";
 	public const string BranchDelete   = "&Delete branch";
-	public const string BranchLog      = "Show &log";
 
 	// Remote panel
 	public const string MenuRemote  = "Re&mote";

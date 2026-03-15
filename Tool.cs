@@ -1,5 +1,6 @@
 using FarNet;
 using FarGit.Panels;
+using LibGit2Sharp;
 
 namespace FarGit;
 
@@ -18,7 +19,6 @@ public class Tool : ModuleTool
 			return;
 		}
 
-		// Otherwise open the Dashboard directly — no extra menu step
 		OpenDashboard();
 	}
 
@@ -30,7 +30,34 @@ public class Tool : ModuleTool
 
 	static void OpenDashboard() => TryOpen(() =>
 	{
-		var gitDir = Lib.GetGitDir(Far.Api.CurrentDirectory);
+		string? gitDir;
+		try { gitDir = Lib.GetGitDir(Far.Api.CurrentDirectory); }
+		catch { gitDir = null; }
+
+		if (gitDir is null)
+		{
+			// Not in a git repo — offer helpful options instead of a bare error
+			var menu = Far.Api.CreateMenu();
+			menu.Title = "FarGit — No repository found here";
+			menu.Add("Clone a repository from URL...");
+			menu.Add("Initialize a new git repo in the current folder");
+			if (!menu.Show()) return;
+
+			if (menu.Selected == 0)
+				Workflows.Wizard.CloneRepo(null);
+			else
+				TryOpen(InitAndOpen);
+			return;
+		}
+
 		new DashboardExplorer(gitDir).CreatePanel().Open();
 	});
+
+	static void InitAndOpen()
+	{
+		var dir = Far.Api.CurrentDirectory;
+		Repository.Init(dir);
+		var gitDir = Lib.GetGitDir(dir);
+		new DashboardExplorer(gitDir).CreatePanel().Open();
+	}
 }

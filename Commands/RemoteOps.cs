@@ -100,4 +100,29 @@ static class RemoteOps
 		if (!ok) throw new Exception(string.IsNullOrEmpty(output) ? "git clone failed." : output);
 		return localPath;
 	}
+
+	// ── Revert ────────────────────────────────────────────────────────────
+
+	/// <summary>
+	/// Creates a new commit that undoes the changes introduced by <paramref name="sha"/>.
+	/// Safe for pushed commits — history is never rewritten.
+	/// </summary>
+	public static string Revert(string gitDir, string sha)
+	{
+		var (output, ok) = RunGit(WorkDir(gitDir), "revert", "--no-edit", sha);
+		if (!ok) throw new Exception(string.IsNullOrEmpty(output) ? "git revert failed." : output);
+		return string.IsNullOrEmpty(output) ? "Revert complete." : output;
+	}
+
+	// ── Reset (soft) ──────────────────────────────────────────────────────
+
+	/// <summary>
+	/// Moves HEAD back one commit, keeping all changed files staged.
+	/// Only safe before the commit has been pushed.
+	/// </summary>
+	public static void ResetSoft(string gitDir)
+	{
+		var (output, ok) = RunGit(WorkDir(gitDir), "reset", "--soft", "HEAD~1");
+		if (!ok) throw new Exception(string.IsNullOrEmpty(output) ? "git reset failed." : output);
+	}
 }

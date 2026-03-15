@@ -10,7 +10,7 @@ public abstract class AbcPanel(Explorer explorer) : Panel(explorer)
 	protected abstract string HelpTopic { get; }
 
 	/// <summary>
-	/// Adds panel-specific menu items when the F11 tool menu is opened while this panel is active.
+	/// Adds panel-specific menu items. Called by both the F11 tool menu and the F2 user menu.
 	/// </summary>
 	internal abstract void AddMenu(IMenu menu);
 
@@ -37,6 +37,14 @@ public abstract class AbcPanel(Explorer explorer) : Panel(explorer)
 				// Pass the module directory (not the DLL path) so FAR finds FarGit.hlf
 				var dir = Path.GetDirectoryName(typeof(AbcPanel).Assembly.Location)!;
 				Far.Api.ShowHelp(dir, HelpTopic, HelpOptions.Path);
+				return true;
+
+			case KeyCode.F2 when key.Is():
+				// User Menu — show this panel's actions directly without going through F11
+				var menu = Far.Api.CreateMenu();
+				menu.Title = Const.ModuleName;
+				AddMenu(menu);
+				menu.Show();
 				return true;
 		}
 

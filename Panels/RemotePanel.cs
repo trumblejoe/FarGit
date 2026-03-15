@@ -28,10 +28,11 @@ public class RemotePanel : BasePanel
 		SetView(plan0);
 
 		SetKeyBars([
-			new KeyBar(KeyCode.F5, ControlKeyStates.None, "Fetch", "Download changes (no merge)"),
-			new KeyBar(KeyCode.F6, ControlKeyStates.None, "Pull",  "Download + merge into current branch"),
-			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Push",  "Upload local commits"),
-			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Remove","Remove this remote"),
+			new KeyBar(KeyCode.F2, ControlKeyStates.None, "Menu",   "Panel actions"),
+			new KeyBar(KeyCode.F5, ControlKeyStates.None, "Fetch",  "Download changes (no merge)"),
+			new KeyBar(KeyCode.F6, ControlKeyStates.None, "Pull",   "Download + merge into current branch"),
+			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Push",   "Upload local commits"),
+			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Remove", "Remove this remote"),
 		]);
 	}
 

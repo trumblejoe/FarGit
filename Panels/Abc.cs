@@ -52,3 +52,23 @@ public class TagFile(string name, string description, DateTime when, Tag tag) : 
 
 	public Tag Tag => tag;
 }
+
+/// <summary>
+/// Which section a <see cref="DashboardFile"/> represents.
+/// </summary>
+public enum DashboardSection { Branch, Staged, Unstaged, Untracked, Stash, Tags }
+
+/// <summary>
+/// A row in the <see cref="DashboardPanel"/> summary view.
+/// Name: section label (e.g. "Staged")
+/// Owner: count/value (e.g. "3 files")
+/// Description: human-readable detail
+/// </summary>
+public class DashboardFile(string name, string owner, string description, DashboardSection section) : FarFile
+{
+	public override string Name => name;
+	public override string? Owner => owner;
+	public override string Description => description;
+	public override FileAttributes Attributes => FileAttributes.Directory;
+	public DashboardSection Section => section;
+}

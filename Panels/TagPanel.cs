@@ -24,6 +24,12 @@ public class TagPanel : BasePanel
 		var plan0 = new PanelPlan { Columns = [cd, cn, cz] };
 		SetPlan(0, plan0);
 		SetView(plan0);
+
+		SetKeyBars([
+			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Show", "View tagged commit diff"),
+			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Create", "Create new tag on HEAD"),
+			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Delete", "Delete tag"),
+		]);
 	}
 
 	protected override string HelpTopic => "tag-panel";
@@ -120,6 +126,19 @@ public class TagPanel : BasePanel
 	{
 		switch (key.VirtualKeyCode)
 		{
+			case KeyCode.F3 when key.Is():
+				ShowTaggedCommit();
+				return true;
+
+			case KeyCode.F7 when key.Is():
+				CreateTag();
+				return true;
+
+			case KeyCode.F8 when key.Is():
+				if (CurrentFile is not null) DeleteTag([CurrentFile]);
+				return true;
+
+			// Legacy aliases
 			case KeyCode.C when key.Is():
 			case KeyCode.Insert when key.Is():
 				CreateTag();

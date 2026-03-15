@@ -17,35 +17,60 @@ public class StatusExplorer(string gitDir)
 		using var repo = new Repository(GitDir);
 		var status = repo.RetrieveStatus(new StatusOptions { IncludeUntracked = true });
 
-		// 1. Staged changes (index vs HEAD)
-		foreach (var entry in status)
+		// Pre-collect each group so we can show counts in the section headers
+		var staged = status
+			.Select(e => (entry: e, sym: Lib.StagedSymbol(e.State)))
+			.Where(x => x.sym != " ")
+			.ToList();
+
+		var unstaged = status
+			.Select(e => (entry: e, sym: Lib.UnstagedSymbol(e.State)))
+			.Where(x => x.sym != " ")
+			.ToList();
+
+		var untracked = status.Untracked.ToList();
+
+		// 1. Staged section
+		if (staged.Count > 0)
 		{
-			var sym = Lib.StagedSymbol(entry.State);
-			if (sym != " ")
+			yield return SectionHeader($"  Staged ({staged.Count})  — F5 to unstage, F7 to commit");
+			foreach (var (entry, sym) in staged)
 				yield return new StatusFile(entry.FilePath, Const.CatStaged, sym, entry);
 		}
 
-		// 2. Unstaged changes (workdir vs index)
-		foreach (var entry in status)
+		// 2. Unstaged section
+		if (unstaged.Count > 0)
 		{
-			var sym = Lib.UnstagedSymbol(entry.State);
-			if (sym != " ")
+			yield return SectionHeader($"  Unstaged ({unstaged.Count})  — F5 to stage");
+			foreach (var (entry, sym) in unstaged)
 				yield return new StatusFile(entry.FilePath, Const.CatUnstaged, sym, entry);
 		}
 
-		// 3. Untracked files
-		foreach (var entry in status.Untracked)
+		// 3. Untracked section
+		if (untracked.Count > 0)
 		{
-			yield return new StatusFile(entry.FilePath, Const.CatUntracked, "?", entry);
+			yield return SectionHeader($"  Untracked ({untracked.Count})  — F5 to start tracking");
+			foreach (var entry in untracked)
+				yield return new StatusFile(entry.FilePath, Const.CatUntracked, "?", entry);
 		}
+
+		if (staged.Count == 0 && unstaged.Count == 0 && untracked.Count == 0)
+			yield return SectionHeader("  Working tree clean — nothing to commit");
 
 		// Update panel title when first loaded
 		if (args.Panel is StatusPanel panel && panel.Title is null)
 		{
 			var work = repo.Info.WorkingDirectory;
 			var branch = repo.Head.FriendlyName;
-			panel.Title = $"Git Status [{branch}] {work}";
+			panel.Title = $"Git Status  [{branch}]  {work}";
 			panel.CurrentLocation = work;
 		}
 	}
+
+	/// <summary>Creates a non-interactive section header row.</summary>
+	static SetFile SectionHeader(string text) => new()
+	{
+		Name = text,
+		Attributes = FileAttributes.ReadOnly,
+	};
 }

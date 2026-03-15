@@ -25,6 +25,14 @@ public class StashPanel : BasePanel
 		var plan0 = new PanelPlan { Columns = [co, cd, cn] };
 		SetPlan(0, plan0);
 		SetView(plan0);
+
+		SetKeyBars([
+			new KeyBar(KeyCode.F5, ControlKeyStates.None, "Apply", "Apply stash (keep it)"),
+			new KeyBar(KeyCode.F6, ControlKeyStates.None, "Pop", "Apply and drop stash"),
+			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Create", "Save current changes as stash"),
+			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Drop", "Delete stash"),
+			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Show", "View stash contents"),
+		]);
 	}
 
 	protected override string HelpTopic => "stash-panel";
@@ -153,6 +161,27 @@ public class StashPanel : BasePanel
 	{
 		switch (key.VirtualKeyCode)
 		{
+			case KeyCode.F3 when key.Is():
+				ShowContents();
+				return true;
+
+			case KeyCode.F5 when key.Is():
+				ApplyStash();
+				return true;
+
+			case KeyCode.F6 when key.Is():
+				PopStash();
+				return true;
+
+			case KeyCode.F7 when key.Is():
+				CreateStash();
+				return true;
+
+			case KeyCode.F8 when key.Is():
+				DropStash();
+				return true;
+
+			// Legacy aliases
 			case KeyCode.A when key.Is():
 			case KeyCode.Insert when key.Is():
 				CreateStash();

@@ -4,14 +4,20 @@ using LibGit2Sharp;
 namespace FarGit.Panels;
 
 /// <summary>
-/// Panel showing git working-tree status.
+/// Panel showing the git working-tree status, grouped into three sections:
+///   Staged — indexed changes ready to commit
+///   Unstaged — working-tree changes not yet staged
+///   Untracked — new files not yet tracked
 ///
-/// Key bindings:
-///   Space        – toggle stage/unstage for current file
+/// Key bindings (shown in the key bar at the bottom):
+///   Enter / F3   – view diff patch for the current file
 ///   F4           – open file in editor
-///   Enter        – view diff patch for current file
-///   ShiftF2      – open commit dialog
+///   F5           – stage current / selected files
+///   F6           – unstage current / selected files
+///   F7           – open commit dialog
+///   F8           – revert changes (with confirmation)
 ///   ShiftF7      – amend last commit
+///   Space        – mark/unmark files for batch stage/unstage
 /// </summary>
 public class StatusPanel : BasePanel
 {
@@ -19,69 +25,50 @@ public class StatusPanel : BasePanel
 	{
 		SortMode = PanelSortMode.Unsorted;
 
-		// Columns: symbol | category | path
-		var co = new SetColumn { Kind = "O", Name = " ", Width = 2 };
+		var co = new SetColumn { Kind = "O", Name = "  ", Width = 2 };
 		var cd = new SetColumn { Kind = "Z", Name = "Status", Width = 10 };
 		var cn = new SetColumn { Kind = "N", Name = "File" };
 
 		var plan0 = new PanelPlan { Columns = [co, cd, cn] };
 		SetPlan(0, plan0);
 		SetView(plan0);
+
+		SetKeyBars([
+			new KeyBar(KeyCode.F3, ControlKeyStates.None, "Diff", "View diff patch"),
+			new KeyBar(KeyCode.F4, ControlKeyStates.None, "Edit", "Edit file in editor"),
+			new KeyBar(KeyCode.F5, ControlKeyStates.None, "Stage", "Stage selected/current"),
+			new KeyBar(KeyCode.F6, ControlKeyStates.None, "Unstage", "Unstage selected/current"),
+			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Commit", "Commit staged changes"),
+			new KeyBar(KeyCode.F8, ControlKeyStates.None, "Revert!", "Revert changes (cannot undo)"),
+			new KeyBar(KeyCode.F7, ControlKeyStates.ShiftPressed, "Amend", "Amend last commit"),
+		]);
 	}
 
 	protected override string HelpTopic => "status-panel";
 
-	// --- Actions -----------------------------------------------------------
-
-	void ToggleStage()
+	IReadOnlyList<StatusFile> GetActiveFiles()
 	{
-		var file = CurrentFile as StatusFile;
-		if (file is null) return;
-
-		using var repo = UseRepository();
-		if (file.IsStaged)
-			LibGit2Sharp.Commands.Unstage(repo, file.Name);
-		else
-			LibGit2Sharp.Commands.Stage(repo, file.Name);
-
-		Update(true);
-		Redraw();
+		var marked = GetSelectedFiles().OfType<StatusFile>().ToList();
+		if (marked.Count > 0) return marked;
+		return CurrentFile is StatusFile sf ? [sf] : [];
 	}
 
-	void StageAll()
+	static void OpenPatchViewer(string content, string title)
 	{
-		using var repo = UseRepository();
-		LibGit2Sharp.Commands.Stage(repo, "*");
-		Update(true);
-		Redraw();
-	}
+		content = content.Replace("\uFEFF", string.Empty);
+		var tmp = Path.ChangeExtension(Path.GetTempFileName(), ".diff");
+		File.WriteAllText(tmp, content, System.Text.Encoding.UTF8);
 
-	void UnstageAll()
-	{
-		using var repo = UseRepository();
-		LibGit2Sharp.Commands.Unstage(repo, "*");
-		Update(true);
-		Redraw();
-	}
-
-	void EditFile()
-	{
-		var file = CurrentFile as StatusFile;
-		if (file is null) return;
-
-		using var repo = UseRepository();
-		var work = repo.Info.WorkingDirectory;
-		if (work is null) return;
-
-		var editor = Far.Api.CreateEditor();
-		editor.FileName = Path.Join(work, file.Name);
-		editor.Open();
+		var viewer = Far.Api.CreateViewer();
+		viewer.FileName = tmp;
+		viewer.Title = title;
+		viewer.DeleteSource = DeleteSource.File;
+		viewer.Open();
 	}
 
 	void ShowDiff()
 	{
-		var file = CurrentFile as StatusFile;
-		if (file is null) return;
+		if (CurrentFile is not StatusFile file) return;
 
 		using var repo = UseRepository();
 
@@ -105,62 +92,119 @@ public class StatusPanel : BasePanel
 		OpenPatchViewer(patch, $"Diff: {file.Name}");
 	}
 
-	void OpenCommit(bool amend)
+	void EditFile()
 	{
-		Commands.Commit.Open(GitDir, amend);
+		if (CurrentFile is not StatusFile file) return;
+		using var repo = UseRepository();
+		var work = repo.Info.WorkingDirectory;
+		if (work is null) return;
+
+		var editor = Far.Api.CreateEditor();
+		editor.FileName = Path.Join(work, file.Name);
+		editor.Open();
 	}
 
-	// --- Helpers -----------------------------------------------------------
-
-	static void OpenPatchViewer(string content, string title)
+	void StageSelected()
 	{
-		content = content.Replace("\uFEFF", string.Empty);
-		var tmp = Path.ChangeExtension(Path.GetTempFileName(), ".diff");
-		File.WriteAllText(tmp, content, System.Text.Encoding.UTF8);
-
-		var viewer = Far.Api.CreateViewer();
-		viewer.FileName = tmp;
-		viewer.Title = title;
-		viewer.DeleteSource = DeleteSource.File;
-		viewer.Open();
+		var files = GetActiveFiles();
+		if (files.Count == 0) return;
+		using var repo = UseRepository();
+		foreach (var f in files)
+			LibGit2Sharp.Commands.Stage(repo, f.Name);
+		Update(true);
+		Redraw();
 	}
 
-	// --- Menu / key handling -----------------------------------------------
+	void UnstageSelected()
+	{
+		var files = GetActiveFiles().Where(f => f.IsStaged).ToList();
+		if (files.Count == 0) return;
+		using var repo = UseRepository();
+		foreach (var f in files)
+			LibGit2Sharp.Commands.Unstage(repo, f.Name);
+		Update(true);
+		Redraw();
+	}
+
+	void RevertSelected()
+	{
+		var files = GetActiveFiles().Where(f => !f.IsUntracked).ToList();
+		if (files.Count == 0)
+		{
+			Far.Api.Message("Nothing to revert. Untracked files are not affected.", Const.ModuleName);
+			return;
+		}
+
+		var names = string.Join("\n", files.Select(f => $"  {f.Owner}  {f.Name}"));
+		if (0 != Far.Api.Message(
+			$"Revert changes — this cannot be undone!\n\n{names}",
+			Const.ModuleName,
+			MessageOptions.YesNo | MessageOptions.Warning))
+			return;
+
+		using var repo = UseRepository();
+		foreach (var f in files.Where(f => f.IsStaged))
+			LibGit2Sharp.Commands.Unstage(repo, f.Name);
+		repo.CheckoutPaths("HEAD", files.Select(f => f.Name), new CheckoutOptions());
+		Update(true);
+		Redraw();
+	}
+
+	void OpenCommit(bool amend) => Commands.Commit.Open(GitDir, amend);
 
 	internal override void AddMenu(IMenu menu)
 	{
-		menu.Add(Const.StageFile, (_, _) => ToggleStage());
-		menu.Add(Const.StageAll, (_, _) => StageAll());
-		menu.Add(Const.UnstageAll, (_, _) => UnstageAll());
-		menu.Add(Const.EditFile, (_, _) => EditFile());
 		menu.Add(Const.DiffFile, (_, _) => ShowDiff());
+		menu.Add(Const.EditFile, (_, _) => EditFile());
+		menu.Add(string.Empty).IsSeparator = true;
+		menu.Add(Const.StageFile, (_, _) => StageSelected());
+		menu.Add(Const.UnstageFile, (_, _) => UnstageSelected());
+		menu.Add(Const.StageAll, (_, _) =>
+		{
+			using var repo = UseRepository();
+			LibGit2Sharp.Commands.Stage(repo, "*");
+			Update(true); Redraw();
+		});
+		menu.Add(Const.UnstageAll, (_, _) =>
+		{
+			using var repo = UseRepository();
+			LibGit2Sharp.Commands.Unstage(repo, "*");
+			Update(true); Redraw();
+		});
+		menu.Add(string.Empty).IsSeparator = true;
 		menu.Add(Const.MenuCommit, (_, _) => OpenCommit(false));
 		menu.Add(Const.MenuAmend, (_, _) => OpenCommit(true));
 	}
 
 	public override void UIOpenFile(FarFile file)
 	{
-		ShowDiff();
+		if (file is StatusFile) ShowDiff();
 	}
 
 	public override bool UIKeyPressed(KeyInfo key)
 	{
 		switch (key.VirtualKeyCode)
 		{
-			case KeyCode.Spacebar when key.Is():
-				ToggleStage();
+			case KeyCode.F3 when key.Is():
+				ShowDiff();
 				return true;
-
 			case KeyCode.F4 when key.Is():
 				EditFile();
 				return true;
-
-			case KeyCode.F2 when key.IsShift():
+			case KeyCode.F5 when key.Is():
+				StageSelected();
+				return true;
+			case KeyCode.F6 when key.Is():
+				UnstageSelected();
+				return true;
+			case KeyCode.F7 when key.Is():
 				OpenCommit(false);
 				return true;
-
 			case KeyCode.F7 when key.IsShift():
 				OpenCommit(true);
+				return true;
+			case KeyCode.F8 when key.Is():
+				RevertSelected();
 				return true;
 		}
 

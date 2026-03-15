@@ -36,7 +36,7 @@ public class DashboardPanel : BasePanel
 			new KeyBar(KeyCode.F3, ControlKeyStates.None,         "Branches", "Branch manager"),
 			new KeyBar(KeyCode.F4, ControlKeyStates.None,         "History",  "Commit timeline"),
 			new KeyBar(KeyCode.F5, ControlKeyStates.None,         "StageAll", "Stage all changes"),
-			new KeyBar(KeyCode.F6, ControlKeyStates.None,         "",         ""),
+			new KeyBar(KeyCode.F6, ControlKeyStates.None,         "Push",     "Push commits to remote"),
 			new KeyBar(KeyCode.F7, ControlKeyStates.None,         "Commit",   "Commit staged changes"),
 			new KeyBar(KeyCode.F8, ControlKeyStates.None,         "",         ""),
 			new KeyBar(KeyCode.F7, ControlKeyStates.ShiftPressed, "Amend",    "Amend last commit"),
@@ -65,6 +65,20 @@ public class DashboardPanel : BasePanel
 		LibGit2Sharp.Commands.Stage(repo, "*");
 		Update(true);
 		Redraw();
+	}
+
+	void QuickPush()
+	{
+		try
+		{
+			var output = Commands.RemoteOps.Push(GitDir);
+			Update(true); Redraw();
+			Far.Api.Message(output, "Push");
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
 	}
 
 	// --- Menu / key handling -----------------------------------------------
@@ -131,8 +145,11 @@ public class DashboardPanel : BasePanel
 				return true;
 
 			case KeyCode.F6 when key.Is():
+				QuickPush();
+				return true;
+
 			case KeyCode.F8 when key.Is():
-				return true; // suppress default copy/move/delete — they don't apply here
+				return true; // suppress default delete
 
 			case KeyCode.F7 when key.Is():
 				OpenCommit(false);
@@ -146,3 +163,4 @@ public class DashboardPanel : BasePanel
 		return base.UIKeyPressed(key);
 	}
 }
+

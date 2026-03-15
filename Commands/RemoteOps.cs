@@ -1,130 +1,103 @@
-using FarNet;
+using System.Diagnostics;
 using LibGit2Sharp;
-using LibGit2Sharp.Handlers;
 
 namespace FarGit.Commands;
 
 /// <summary>
-/// Helpers for network operations: fetch, pull, push, clone.
-/// Prompts for credentials on demand (HTTPS).
+/// Network operations delegated to the system git.exe.
+/// This avoids LibGit2Sharp's bundled TLS stack and instead uses the OS TLS
+/// and the git credential manager (Windows Credential Manager on Windows).
 /// </summary>
 static class RemoteOps
 {
-	// ── Credential prompt ─────────────────────────────────────────────────
-
-	/// <summary>
-	/// Returns a CredentialsHandler that uses stored credentials when available,
-	/// otherwise prompts and offers to save the new credentials.
-	/// </summary>
-	public static CredentialsHandler MakeHandler()
+	static string WorkDir(string gitDir)
 	{
-		string? user = null, pass = null;
-		return (url, fromUrl, types) =>
+		using var repo = new Repository(gitDir);
+		return repo.Info.WorkingDirectory;
+	}
+
+	/// <summary>Runs a git command and returns (combined output, success).</summary>
+	static (string Output, bool Success) RunGit(string workDir, params string[] args)
+	{
+		var psi = new ProcessStartInfo("git")
 		{
-			if (user is null || pass is null)
-			{
-				var host = Credentials.HostOf(url);
-				var stored = Credentials.Get(host);
-				if (stored is not null)
-				{
-					user = stored.Value.Username;
-					pass = stored.Value.Token;
-				}
-				else
-				{
-					user = Far.Api.Input(
-						$"Username or email for {host}:",
-						"FarGit-username", "Git Credentials") ?? string.Empty;
-
-					pass = Far.Api.Input(
-						$"Password / Personal Access Token for {host}:\n\n" +
-						"For GitHub: use a PAT, not your account password.\n" +
-						"Generate at: github.com → Settings → Developer settings → PATs",
-						"FarGit-password", "Git Credentials") ?? string.Empty;
-
-					// Offer to save so the user isn't prompted every time
-					if (!string.IsNullOrEmpty(user) && !string.IsNullOrEmpty(pass) &&
-						0 == Far.Api.Message(
-							$"Save credentials for '{host}'?\n\n" +
-							"They will be stored encrypted on this machine (Windows DPAPI).",
-							Const.ModuleName, MessageOptions.YesNo))
-					{
-						Credentials.Set(host, user, pass);
-					}
-				}
-			}
-
-			return new UsernamePasswordCredentials { Username = user ?? "", Password = pass ?? "" };
+			WorkingDirectory       = workDir,
+			RedirectStandardOutput = true,
+			RedirectStandardError  = true,
+			UseShellExecute        = false,
+			CreateNoWindow         = true,
 		};
+		foreach (var a in args) psi.ArgumentList.Add(a);
+
+		using var proc = Process.Start(psi)
+			?? throw new Exception("Could not start git.exe. Is git installed and on your PATH?");
+
+		var stdout = proc.StandardOutput.ReadToEnd();
+		var stderr = proc.StandardError.ReadToEnd();
+		proc.WaitForExit();
+
+		// git often writes progress/info to stderr; combine both
+		var combined = string.Join("\n",
+			new[] { stdout.Trim(), stderr.Trim() }.Where(s => s.Length > 0));
+		return (combined, proc.ExitCode == 0);
 	}
 
 	// ── Fetch ─────────────────────────────────────────────────────────────
 
-	public static void Fetch(string gitDir, string remoteName)
+	public static string Fetch(string gitDir, string remoteName)
 	{
-		using var repo = new Repository(gitDir);
-		var remote = repo.Network.Remotes[remoteName]
-			?? throw new InvalidOperationException($"Remote '{remoteName}' not found.");
-
-		var refSpecs = remote.FetchRefSpecs.Select(r => r.Specification);
-		LibGit2Sharp.Commands.Fetch(repo, remoteName, refSpecs,
-			new FetchOptions { CredentialsProvider = MakeHandler() }, null);
+		var (output, ok) = RunGit(WorkDir(gitDir), "fetch", remoteName);
+		if (!ok) throw new Exception(string.IsNullOrEmpty(output) ? "git fetch failed." : output);
+		return string.IsNullOrEmpty(output) ? "Fetch complete (nothing new)." : output;
 	}
 
 	// ── Pull ─────────────────────────────────────────────────────────────
 
-	public static MergeResult Pull(string gitDir)
+	public static string Pull(string gitDir)
 	{
-		using var repo = new Repository(gitDir);
-		var sig = Lib.BuildSignature(repo);
-		return LibGit2Sharp.Commands.Pull(repo, sig, new PullOptions
-		{
-			FetchOptions = new FetchOptions { CredentialsProvider = MakeHandler() },
-			MergeOptions = new MergeOptions { FastForwardStrategy = FastForwardStrategy.Default },
-		});
+		var (output, ok) = RunGit(WorkDir(gitDir), "pull");
+		if (!ok) throw new Exception(string.IsNullOrEmpty(output) ? "git pull failed." : output);
+		return string.IsNullOrEmpty(output) ? "Already up to date." : output;
 	}
 
 	// ── Push ─────────────────────────────────────────────────────────────
 
-	public static void Push(string gitDir, string? remoteName = null)
+	public static string Push(string gitDir, string? remoteName = null)
 	{
-		using var repo = new Repository(gitDir);
-		var branch = repo.Head;
+		var workDir = WorkDir(gitDir);
 
-		if (!branch.IsTracking)
+		var firstArgs = remoteName is not null ? new[] { "push", remoteName } : new[] { "push" };
+		var (output, ok) = RunGit(workDir, firstArgs);
+
+		if (!ok)
 		{
-			// No upstream set — push to origin (or specified remote) and set tracking
-			remoteName ??= Far.Api.Input(
-				$"Remote to push '{branch.FriendlyName}' to:",
-				"FarGit-remote",
-				"Push — Choose Remote") ?? "origin";
+			// Branch has no upstream — push with --set-upstream to establish tracking
+			if (output.Contains("--set-upstream") || output.Contains("has no upstream"))
+			{
+				string branch;
+				using (var repo = new Repository(gitDir))
+					branch = repo.Head.FriendlyName;
 
-			if (string.IsNullOrWhiteSpace(remoteName)) return;
+				var remote = remoteName ?? "origin";
+				var (output2, ok2) = RunGit(workDir, "push", "--set-upstream", remote, branch);
+				if (!ok2) throw new Exception(string.IsNullOrEmpty(output2) ? "git push failed." : output2);
+				return string.IsNullOrEmpty(output2) ? "Push complete." : output2;
+			}
 
-			var remote = repo.Network.Remotes[remoteName]
-				?? throw new InvalidOperationException($"Remote '{remoteName}' not found.");
-
-			var pushRefSpec = $"refs/heads/{branch.FriendlyName}:refs/heads/{branch.FriendlyName}";
-			repo.Network.Push(remote, pushRefSpec,
-				new PushOptions { CredentialsProvider = MakeHandler() });
-
-			// Set tracking so future pushes work without prompting for remote
-			repo.Branches.Update(branch,
-				b => b.Remote = remoteName,
-				b => b.UpstreamBranch = branch.CanonicalName);
+			throw new Exception(string.IsNullOrEmpty(output) ? "git push failed." : output);
 		}
-		else
-		{
-			repo.Network.Push(branch,
-				new PushOptions { CredentialsProvider = MakeHandler() });
-		}
+
+		return string.IsNullOrEmpty(output) ? "Push complete." : output;
 	}
 
 	// ── Clone ─────────────────────────────────────────────────────────────
 
 	public static string Clone(string url, string localPath)
 	{
-		return Repository.Clone(url, localPath,
-			new CloneOptions { FetchOptions = { CredentialsProvider = MakeHandler() } });
+		localPath = Path.GetFullPath(localPath);
+		var parentDir = Path.GetDirectoryName(localPath) ?? ".";
+		var (output, ok) = RunGit(parentDir, "clone", url, localPath);
+		if (!ok) throw new Exception(string.IsNullOrEmpty(output) ? "git clone failed." : output);
+		return localPath;
 	}
 }

@@ -573,33 +573,8 @@ static class Wizard
 
 		try
 		{
-			var result = Commands.RemoteOps.Pull(gitDir);
-
-			switch (result.Status)
-			{
-				case MergeStatus.FastForward:
-					Info($"Pull complete!\n\n" +
-					     $"Your branch is now up to date with {remoteName}.\n" +
-					     $"HEAD is at {result.Commit?.Sha[..7]}.");
-					break;
-
-				case MergeStatus.NonFastForward:
-					Info("Pull complete — a merge commit was created\n" +
-					     "to combine your local commits with the remote ones.");
-					break;
-
-				case MergeStatus.Conflicts:
-					Info("Pull complete but there are MERGE CONFLICTS.\n\n" +
-					     "Open Status to see conflicted files, resolve the\n" +
-					     "conflict markers (<<<<<<< / ======= / >>>>>>>),\n" +
-					     "then stage and commit to finish the merge.");
-					break;
-
-				case MergeStatus.UpToDate:
-					Info("Already up to date — no new changes to pull.");
-					break;
-			}
-
+			var output = Commands.RemoteOps.Pull(gitDir);
+			Info($"Pull complete!\n\n{output}");
 			panel.Update(true);
 			panel.Redraw();
 		}

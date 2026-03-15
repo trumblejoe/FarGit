@@ -157,16 +157,56 @@ public class RemotePanel : BasePanel
 		}
 	}
 
+	// ── Credentials ───────────────────────────────────────────────────────
+
+	void SetCredentials()
+	{
+		var f    = CurrentRemote;
+		var host = f is not null ? Commands.Credentials.HostOf(f.RemoteUrl) : "";
+
+		host = Far.Api.Input("Host (e.g. github.com):", "FarGit-cred-host", "Save Credentials", host) ?? "";
+		if (string.IsNullOrWhiteSpace(host)) return;
+
+		var user = Far.Api.Input($"Username for {host}:", "FarGit-username", "Save Credentials") ?? "";
+		if (string.IsNullOrWhiteSpace(user)) return;
+
+		var token = Far.Api.Input(
+			$"Personal Access Token for {host}:\n\n" +
+			"For GitHub: Settings → Developer settings → Personal access tokens",
+			"FarGit-password", "Save Credentials") ?? "";
+		if (string.IsNullOrWhiteSpace(token)) return;
+
+		Commands.Credentials.Set(host, user, token);
+		Far.Api.Message($"Credentials saved for '{host}' (encrypted with Windows DPAPI).", Const.ModuleName);
+	}
+
+	void ClearCredentials()
+	{
+		var f    = CurrentRemote;
+		var host = f is not null ? Commands.Credentials.HostOf(f.RemoteUrl) : "";
+
+		host = Far.Api.Input("Host to clear:", "FarGit-cred-host", "Clear Credentials", host) ?? "";
+		if (string.IsNullOrWhiteSpace(host)) return;
+
+		if (Commands.Credentials.Remove(host))
+			Far.Api.Message($"Credentials for '{host}' removed.", Const.ModuleName);
+		else
+			Far.Api.Message($"No stored credentials found for '{host}'.", Const.ModuleName);
+	}
+
 	// ── Menu / key handling ───────────────────────────────────────────────
 
 	internal override void AddMenu(IMenu menu)
 	{
-		menu.Add(Const.RemoteFetch, (_, _) => Fetch());
-		menu.Add(Const.RemotePull,  (_, _) => Pull());
-		menu.Add(Const.RemotePush,  (_, _) => PushToRemote());
+		menu.Add(Const.RemoteFetch,           (_, _) => Fetch());
+		menu.Add(Const.RemotePull,            (_, _) => Pull());
+		menu.Add(Const.RemotePush,            (_, _) => PushToRemote());
 		menu.Add(string.Empty).IsSeparator = true;
-		menu.Add(Const.RemoteAdd,   (_, _) => AddRemote());
-		menu.Add("&Remove remote",  (_, _) => RemoveRemote());
+		menu.Add(Const.RemoteAdd,             (_, _) => AddRemote());
+		menu.Add("&Remove remote",            (_, _) => RemoveRemote());
+		menu.Add(string.Empty).IsSeparator = true;
+		menu.Add("&Save credentials (PAT…)",  (_, _) => SetCredentials());
+		menu.Add("&Clear credentials",        (_, _) => ClearCredentials());
 	}
 
 	public override bool UIKeyPressed(KeyInfo key)

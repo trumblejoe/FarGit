@@ -55,19 +55,37 @@ public class CommitPanel : BasePanel
 			else
 				patch = repo.Diff.Compare<Patch>(null, commit.Tree); // root commit
 
-			var content = patch.Content.Replace("\uFEFF", string.Empty);
-			if (string.IsNullOrWhiteSpace(content))
+			var sb = new System.Text.StringBuilder();
+			sb.AppendLine($"commit {commit.Sha}");
+			if (!string.IsNullOrEmpty(f.Labels))
+				sb.AppendLine($"Labels: {f.Labels}");
+			sb.AppendLine($"Author: {commit.Author.Name} <{commit.Author.Email}>");
+			sb.AppendLine($"Date:   {commit.Author.When:yyyy-MM-dd HH:mm:ss zzz}");
+			sb.AppendLine();
+
+			// Full commit message, indented 4 spaces per git convention
+			foreach (var line in commit.Message.TrimEnd().Split('\n'))
+				sb.AppendLine($"    {line.TrimEnd()}");
+
+			var diffContent = patch.Content.Replace("\uFEFF", string.Empty);
+			if (!string.IsNullOrWhiteSpace(diffContent))
 			{
-				Far.Api.Message("This commit has no file changes (empty diff).", Const.ModuleName);
-				return;
+				sb.AppendLine();
+				sb.AppendLine(new string('─', 72));
+				sb.Append(diffContent);
+			}
+			else
+			{
+				sb.AppendLine();
+				sb.AppendLine("    (no file changes in this commit)");
 			}
 
 			var tmp = Path.ChangeExtension(Path.GetTempFileName(), ".diff");
-			File.WriteAllText(tmp, content, System.Text.Encoding.UTF8);
+			File.WriteAllText(tmp, sb.ToString(), System.Text.Encoding.UTF8);
 
 			var viewer = Far.Api.CreateViewer();
 			viewer.FileName = tmp;
-			viewer.Title = $"{commit.Sha[..7]}  {commit.MessageShort}  by {commit.Author.Name}";
+			viewer.Title = $"{commit.Sha[..7]}  {commit.MessageShort}";
 			viewer.DeleteSource = DeleteSource.File;
 			viewer.Open();
 		}

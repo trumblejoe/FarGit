@@ -13,26 +13,48 @@ static class RemoteOps
 	// ── Credential prompt ─────────────────────────────────────────────────
 
 	/// <summary>
-	/// Returns a CredentialsHandler that prompts the user once per call site.
+	/// Returns a CredentialsHandler that uses stored credentials when available,
+	/// otherwise prompts and offers to save the new credentials.
 	/// </summary>
 	public static CredentialsHandler MakeHandler()
 	{
 		string? user = null, pass = null;
 		return (url, fromUrl, types) =>
 		{
-			user ??= Far.Api.Input(
-				$"Username or email for:\n{url}",
-				"FarGit-username",
-				"Git Credentials") ?? string.Empty;
+			if (user is null || pass is null)
+			{
+				var host = Credentials.HostOf(url);
+				var stored = Credentials.Get(host);
+				if (stored is not null)
+				{
+					user = stored.Value.Username;
+					pass = stored.Value.Token;
+				}
+				else
+				{
+					user = Far.Api.Input(
+						$"Username or email for {host}:",
+						"FarGit-username", "Git Credentials") ?? string.Empty;
 
-			pass ??= Far.Api.Input(
-				$"Password or Personal Access Token (PAT) for:\n{url}\n\n" +
-				"Tip: For GitHub, use a Personal Access Token,\n" +
-				"not your account password.",
-				"FarGit-password",
-				"Git Credentials") ?? string.Empty;
+					pass = Far.Api.Input(
+						$"Password / Personal Access Token for {host}:\n\n" +
+						"For GitHub: use a PAT, not your account password.\n" +
+						"Generate at: github.com → Settings → Developer settings → PATs",
+						"FarGit-password", "Git Credentials") ?? string.Empty;
 
-			return new UsernamePasswordCredentials { Username = user, Password = pass };
+					// Offer to save so the user isn't prompted every time
+					if (!string.IsNullOrEmpty(user) && !string.IsNullOrEmpty(pass) &&
+						0 == Far.Api.Message(
+							$"Save credentials for '{host}'?\n\n" +
+							"They will be stored encrypted on this machine (Windows DPAPI).",
+							Const.ModuleName, MessageOptions.YesNo))
+					{
+						Credentials.Set(host, user, pass);
+					}
+				}
+			}
+
+			return new UsernamePasswordCredentials { Username = user ?? "", Password = pass ?? "" };
 		};
 	}
 

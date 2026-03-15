@@ -32,6 +32,9 @@ static class Const
 	public const string TagDelete = "&Delete tag";
 	public const string TagShow = "&Show commit";
 
+	// Guided workflows
+	public const string GuideMe = "&Guide Me...";
+
 	// Status categories (shown in Description column)
 	public const string CatStaged = "Staged";
 	public const string CatUnstaged = "Unstaged";

@@ -1,4 +1,5 @@
 using FarNet;
+using FarGit.Workflows;
 
 namespace FarGit.Panels;
 
@@ -28,6 +29,7 @@ public class DashboardPanel : BasePanel
 		SetView(plan0);
 
 		SetKeyBars([
+			new KeyBar(KeyCode.F2, ControlKeyStates.None, "Guide", "Guided git workflows"),
 			new KeyBar(KeyCode.F3, ControlKeyStates.None, "", ""),
 			new KeyBar(KeyCode.F4, ControlKeyStates.None, "", ""),
 			new KeyBar(KeyCode.F5, ControlKeyStates.None, "StageAll", "Stage all changes"),
@@ -47,6 +49,8 @@ public class DashboardPanel : BasePanel
 	void OpenTags() => new TagExplorer(GitDir).CreatePanel().OpenChild(this);
 	void OpenCommit(bool amend) => Commands.Commit.Open(GitDir, amend);
 
+	void OpenGuide() => Wizard.Show(GitDir, this);
+
 	// --- Actions -----------------------------------------------------------
 
 	void StageAll()
@@ -61,6 +65,8 @@ public class DashboardPanel : BasePanel
 
 	internal override void AddMenu(IMenu menu)
 	{
+		menu.Add(Const.GuideMe, (_, _) => OpenGuide());
+		menu.Add(string.Empty).IsSeparator = true;
 		menu.Add(Const.MenuStatus, (_, _) => OpenStatus());
 		menu.Add(Const.MenuStash, (_, _) => OpenStash());
 		menu.Add(Const.MenuTags, (_, _) => OpenTags());
@@ -101,6 +107,10 @@ public class DashboardPanel : BasePanel
 	{
 		switch (key.VirtualKeyCode)
 		{
+			case KeyCode.F2 when key.Is():
+				OpenGuide();
+				return true;
+
 			case KeyCode.F5 when key.Is():
 				StageAll();
 				return true;

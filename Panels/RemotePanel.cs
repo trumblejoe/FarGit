@@ -47,9 +47,9 @@ public class RemotePanel : BasePanel
 
 		try
 		{
-			Commands.RemoteOps.Fetch(GitDir, f.Remote.Name);
+			Commands.RemoteOps.Fetch(GitDir, f.RemoteName);
 			Update(true); Redraw();
-			Far.Api.Message($"Fetch from '{f.Remote.Name}' complete.", Const.ModuleName);
+			Far.Api.Message($"Fetch from '{f.RemoteName}' complete.", Const.ModuleName);
 		}
 		catch (Exception ex)
 		{
@@ -100,7 +100,7 @@ public class RemotePanel : BasePanel
 		var f = CurrentRemote;
 		try
 		{
-			Commands.RemoteOps.Push(GitDir, f?.Remote.Name);
+			Commands.RemoteOps.Push(GitDir, f?.RemoteName);
 			Far.Api.Message("Push complete.", Const.ModuleName);
 			Update(true); Redraw();
 		}
@@ -140,7 +140,7 @@ public class RemotePanel : BasePanel
 		if (f is null) return;
 
 		if (0 != Far.Api.Message(
-			$"Remove remote '{f.Remote.Name}' ({f.Remote.Url})?\n\n" +
+			$"Remove remote '{f.RemoteName}' ({f.RemoteUrl})?\n\n" +
 			"This removes the connection but does not delete any local commits.",
 			Const.ModuleName, MessageOptions.YesNo))
 			return;
@@ -148,7 +148,7 @@ public class RemotePanel : BasePanel
 		try
 		{
 			using var repo = UseRepository();
-			repo.Network.Remotes.Remove(f.Remote.Name);
+			repo.Network.Remotes.Remove(f.RemoteName);
 			Update(true); Redraw();
 		}
 		catch (Exception ex)

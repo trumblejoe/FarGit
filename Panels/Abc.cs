@@ -107,15 +107,18 @@ public class BranchFile : FarFile
 
 /// <summary>
 /// A file entry in the <see cref="RemotePanel"/>.
+/// All display data captured eagerly so the source Repository can be safely disposed.
 /// Name: remote name   Owner: URL
 /// </summary>
 public class RemoteFile(Remote remote) : FarFile
 {
-	public override string Name => remote.Name;
-	public override string? Owner => remote.Url;
-	public override string Description => "fetch + push";
+	public override string  Name        => RemoteName;
+	public override string? Owner       => RemoteUrl;
+	public override string  Description => "fetch + push";
 	public override FileAttributes Attributes => FileAttributes.Directory;
-	public Remote Remote => remote;
+
+	public string RemoteName { get; } = remote.Name;
+	public string RemoteUrl  { get; } = remote.Url ?? "";
 }
 
 /// <summary>
@@ -133,19 +136,34 @@ public class GuideFile(string category, string name, string summary, string deta
 
 /// <summary>
 /// A file entry in the <see cref="CommitPanel"/>.
-/// Name: abbreviated SHA + commit message   Owner: author name
-/// Description: branch/tag labels pointing to this commit (e.g. "HEAD → main, origin/main")
+/// All display data captured eagerly so the source Repository can be safely disposed.
+/// Use <see cref="Sha"/> to look up a fresh Commit when the full object is needed.
 /// </summary>
-public class CommitFile(Commit commit, string labels) : FarFile
+public class CommitFile : FarFile
 {
-	public override string Name => $"{commit.Sha[..7]}  {commit.MessageShort}";
-	public override string? Owner => commit.Author.Name;
-	public override DateTime LastWriteTime => commit.Author.When.LocalDateTime;
-	public override string Description => labels;
-	public override FileAttributes Attributes =>
-		string.IsNullOrEmpty(labels) ? FileAttributes.Normal : FileAttributes.Directory;
+	readonly string _name;
+	readonly string _owner;
+	readonly DateTime _date;
 
-	public Commit Commit => commit;
+	public CommitFile(Commit commit, string labels)
+	{
+		Sha    = commit.Sha;
+		_name  = $"{commit.Sha[..7]}  {commit.MessageShort}";
+		_owner = commit.Author.Name;
+		_date  = commit.Author.When.LocalDateTime;
+		Labels = labels;
+	}
+
+	public override string   Name          => _name;
+	public override string?  Owner         => _owner;
+	public override DateTime LastWriteTime => _date;
+	public override string   Description   => Labels;
+	public override FileAttributes Attributes =>
+		string.IsNullOrEmpty(Labels) ? FileAttributes.Normal : FileAttributes.Directory;
+
+	/// <summary>Full SHA — use to look up a fresh Commit from a new Repository.</summary>
+	public string Sha    { get; }
+	public string Labels { get; }
 }
 
 /// <summary>

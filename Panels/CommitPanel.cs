@@ -39,30 +39,42 @@ public class CommitPanel : BasePanel
 	{
 		if (CurrentFile is not CommitFile f) return;
 
-		using var repo = UseRepository();
-		var commit = f.Commit;
-
-		Patch patch;
-		if (commit.Parents.Any())
-			patch = repo.Diff.Compare<Patch>(commit.Parents.First().Tree, commit.Tree);
-		else
-			patch = repo.Diff.Compare<Patch>(null, commit.Tree); // root commit
-
-		var content = patch.Content.Replace("\uFEFF", string.Empty);
-		if (string.IsNullOrWhiteSpace(content))
+		try
 		{
-			Far.Api.Message("This commit has no file changes (empty diff).", Const.ModuleName);
-			return;
+			using var repo = UseRepository();
+			var commit = repo.Lookup<Commit>(f.Sha);
+			if (commit is null)
+			{
+				Far.Api.Message($"Commit {f.Sha[..7]} not found.", Const.ModuleName, MessageOptions.Warning);
+				return;
+			}
+
+			Patch patch;
+			if (commit.Parents.Any())
+				patch = repo.Diff.Compare<Patch>(commit.Parents.First().Tree, commit.Tree);
+			else
+				patch = repo.Diff.Compare<Patch>(null, commit.Tree); // root commit
+
+			var content = patch.Content.Replace("\uFEFF", string.Empty);
+			if (string.IsNullOrWhiteSpace(content))
+			{
+				Far.Api.Message("This commit has no file changes (empty diff).", Const.ModuleName);
+				return;
+			}
+
+			var tmp = Path.ChangeExtension(Path.GetTempFileName(), ".diff");
+			File.WriteAllText(tmp, content, System.Text.Encoding.UTF8);
+
+			var viewer = Far.Api.CreateViewer();
+			viewer.FileName = tmp;
+			viewer.Title = $"{commit.Sha[..7]}  {commit.MessageShort}  by {commit.Author.Name}";
+			viewer.DeleteSource = DeleteSource.File;
+			viewer.Open();
 		}
-
-		var tmp = Path.ChangeExtension(Path.GetTempFileName(), ".diff");
-		File.WriteAllText(tmp, content, System.Text.Encoding.UTF8);
-
-		var viewer = Far.Api.CreateViewer();
-		viewer.FileName = tmp;
-		viewer.Title = $"{commit.Sha[..7]}  {commit.MessageShort}  by {commit.Author.Name}";
-		viewer.DeleteSource = DeleteSource.File;
-		viewer.Open();
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
 	}
 
 	// ── Menu / key handling ───────────────────────────────────────────────

@@ -52,10 +52,20 @@ static class Commit
 		try
 		{
 			var options = new CommitOptions { AmendPreviousCommit = amend };
-			repo.Commit(message.Trim(), sig, sig, options);
+			var commit  = repo.Commit(message.Trim(), sig, sig, options);
 
 			RefreshPanel(Far.Api.Panel);
 			RefreshPanel(Far.Api.Panel2);
+
+			// Check whether a remote exists so we can offer to push
+			bool hasRemote = repo.Network.Remotes.Any();
+			var sha7 = commit.Sha[..7];
+			if (hasRemote && 0 == Far.Api.Message(
+				$"Committed {sha7} on '{repo.Head.FriendlyName}'.\n\nPush to remote now?",
+				Const.ModuleName, MessageOptions.YesNo))
+			{
+				RemoteOps.Push(gitDir);
+			}
 		}
 		catch (Exception ex)
 		{

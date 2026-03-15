@@ -44,7 +44,7 @@ public class BranchPanel : BasePanel
 	{
 		var f = CurrentBranch;
 		if (f is null || f.IsCurrent) return;
-		if (f.Branch.IsRemote)
+		if (f.IsRemote)
 		{
 			Far.Api.Message(
 				"This is a remote-tracking branch. To work on it, create a local branch:\n\n" +
@@ -58,7 +58,9 @@ public class BranchPanel : BasePanel
 		try
 		{
 			using var repo = UseRepository();
-			LibGit2Sharp.Commands.Checkout(repo, f.Branch);
+			var branch = repo.Branches[f.BranchName]
+				?? throw new Exception($"Branch '{f.BranchName}' not found.");
+			LibGit2Sharp.Commands.Checkout(repo, branch);
 			Update(true); Redraw();
 		}
 		catch (CheckoutConflictException ex)
@@ -116,14 +118,14 @@ public class BranchPanel : BasePanel
 		using (var repo = UseRepository())
 			currentBranch = repo.Head.FriendlyName;
 
-		if (f.Branch.FriendlyName == currentBranch)
+		if (f.BranchName == currentBranch)
 		{
 			Far.Api.Message("Cannot merge a branch into itself.", Const.ModuleName);
 			return;
 		}
 
 		if (0 != Far.Api.Message(
-			$"Merge '{f.Branch.FriendlyName}' into '{currentBranch}'?\n\n" +
+			$"Merge '{f.BranchName}' into '{currentBranch}'?\n\n" +
 			"This will combine the history of both branches.\n" +
 			"If there are conflicts you will need to resolve them manually.",
 			Const.ModuleName, MessageOptions.YesNo))
@@ -132,8 +134,10 @@ public class BranchPanel : BasePanel
 		try
 		{
 			using var repo = UseRepository();
+			var branch = repo.Branches[f.BranchName]
+				?? throw new Exception($"Branch '{f.BranchName}' not found.");
 			var sig = Lib.BuildSignature(repo);
-			var result = repo.Merge(f.Branch, sig, new MergeOptions());
+			var result = repo.Merge(branch, sig, new MergeOptions());
 
 			switch (result.Status)
 			{
@@ -175,7 +179,7 @@ public class BranchPanel : BasePanel
 			Far.Api.Message("Cannot delete the currently checked-out branch.", Const.ModuleName);
 			return;
 		}
-		if (f.Branch.IsRemote)
+		if (f.IsRemote)
 		{
 			Far.Api.Message(
 				"Deleting remote-tracking branches from here is not supported.\n" +
@@ -185,7 +189,7 @@ public class BranchPanel : BasePanel
 		}
 
 		if (0 != Far.Api.Message(
-			$"Delete local branch '{f.Branch.FriendlyName}'?\n\n" +
+			$"Delete local branch '{f.BranchName}'?\n\n" +
 			"Any commits that exist only on this branch will be lost.",
 			Const.ModuleName, MessageOptions.YesNo | MessageOptions.Warning))
 			return;
@@ -193,7 +197,7 @@ public class BranchPanel : BasePanel
 		try
 		{
 			using var repo = UseRepository();
-			repo.Branches.Remove(f.Branch);
+			repo.Branches.Remove(f.BranchName);
 			Update(true); Redraw();
 		}
 		catch (Exception ex)

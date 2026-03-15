@@ -55,34 +55,47 @@ public class TagFile(string name, string description, DateTime when, Tag tag) : 
 
 /// <summary>
 /// A file entry in the <see cref="BranchPanel"/>.
+/// All display data is captured eagerly so the source Repository can be safely disposed.
 /// Name: branch friendly name   Owner: "*" if current / remote name if remote
 /// Description: tracking ahead/behind info for local branches
 /// </summary>
-public class BranchFile(Branch branch) : FarFile
+public class BranchFile : FarFile
 {
-	public override string Name => branch.FriendlyName;
+	readonly string _owner;
+	readonly string _description;
 
-	public override string? Owner => branch.IsCurrentRepositoryHead ? "*" :
-	                                 branch.IsRemote ? RemoteName(branch) : "";
-
-	public override string Description
+	public BranchFile(Branch branch)
 	{
-		get
+		BranchName = branch.FriendlyName;
+		IsCurrent  = branch.IsCurrentRepositoryHead;
+		IsRemote   = branch.IsRemote;
+
+		_owner = IsCurrent ? "*" : IsRemote ? RemoteName(branch) : "";
+
+		if (!IsRemote && branch.IsTracking)
 		{
-			if (branch.IsRemote || !branch.IsTracking) return string.Empty;
 			var td = branch.TrackingDetails;
 			var parts = new List<string>();
 			if (td.AheadBy  > 0) parts.Add($"+{td.AheadBy} to push");
 			if (td.BehindBy > 0) parts.Add($"-{td.BehindBy} to pull");
-			return parts.Count > 0 ? string.Join("  ", parts) : "up to date";
+			_description = parts.Count > 0 ? string.Join("  ", parts) : "up to date";
+		}
+		else
+		{
+			_description = string.Empty;
 		}
 	}
 
+	public override string  Name        => BranchName;
+	public override string? Owner       => _owner;
+	public override string  Description => _description;
 	public override FileAttributes Attributes =>
-		branch.IsCurrentRepositoryHead ? FileAttributes.Directory : FileAttributes.Normal;
+		IsCurrent ? FileAttributes.Directory : FileAttributes.Normal;
 
-	public Branch Branch => branch;
-	public bool IsCurrent => branch.IsCurrentRepositoryHead;
+	/// <summary>Friendly name — use this to look up a fresh Branch from a new Repository.</summary>
+	public string BranchName { get; }
+	public bool   IsCurrent  { get; }
+	public bool   IsRemote   { get; }
 
 	static string RemoteName(Branch b)
 	{

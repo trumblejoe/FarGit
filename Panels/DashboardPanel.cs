@@ -87,42 +87,21 @@ public class DashboardPanel : BasePanel
 		menu.Add(Const.StageAll,      (_, _) => StageAll());
 	}
 
-	public override void UIOpenFile(FarFile file)
+	void NavigateSection(DashboardSection section)
 	{
-		if (file is not DashboardFile df) return;
-
-		switch (df.Section)
+		switch (section)
 		{
 			case DashboardSection.Branch:
 			case DashboardSection.Staged:
 			case DashboardSection.Unstaged:
 			case DashboardSection.Untracked:
-				OpenStatus();
-				break;
-
-			case DashboardSection.Branches:
-				OpenBranches();
-				break;
-
-			case DashboardSection.History:
-				OpenHistory();
-				break;
-
-			case DashboardSection.Stash:
-				OpenStash();
-				break;
-
-			case DashboardSection.Tags:
-				OpenTags();
-				break;
-
-			case DashboardSection.Remote:
-				OpenRemote();
-				break;
-
-			case DashboardSection.Guide:
-				OpenGuideRef();
-				break;
+				OpenStatus();   break;
+			case DashboardSection.Branches: OpenBranches(); break;
+			case DashboardSection.History:  OpenHistory();  break;
+			case DashboardSection.Stash:    OpenStash();    break;
+			case DashboardSection.Tags:     OpenTags();     break;
+			case DashboardSection.Remote:   OpenRemote();   break;
+			case DashboardSection.Guide:    OpenGuideRef(); break;
 		}
 	}
 
@@ -130,6 +109,11 @@ public class DashboardPanel : BasePanel
 	{
 		switch (key.VirtualKeyCode)
 		{
+			case KeyCode.Enter when key.Is():
+				if (CurrentFile is DashboardFile df)
+					NavigateSection(df.Section);
+				return true;
+
 			case KeyCode.F2 when key.Is():
 				OpenGuide();
 				return true;

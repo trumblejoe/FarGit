@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Override by setting FarHome env variable or passing /p:FarHome=... to dotnet build -->
+    <FarHome Condition="'$(FarHome)' == ''">C:\Bin\Far\x64</FarHome>
+  </PropertyGroup>
+</Project>

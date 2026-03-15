@@ -34,7 +34,9 @@ public abstract class AbcPanel(Explorer explorer) : Panel(explorer)
 		switch (key.VirtualKeyCode)
 		{
 			case KeyCode.F1 when key.Is():
-				Far.Api.ShowHelp(typeof(AbcPanel).Assembly.Location, HelpTopic, HelpOptions.None);
+				// Pass the module directory (not the DLL path) so FAR finds FarGit.hlf
+				var dir = Path.GetDirectoryName(typeof(AbcPanel).Assembly.Location)!;
+				Far.Api.ShowHelp(dir, HelpTopic, HelpOptions.Path);
 				return true;
 		}
 

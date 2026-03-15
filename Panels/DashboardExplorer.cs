@@ -5,7 +5,7 @@ namespace FarGit.Panels;
 
 /// <summary>
 /// Explorer for <see cref="DashboardPanel"/>.
-/// Shows a repo-at-a-glance summary: branch, staged/unstaged/untracked counts, stash, tags.
+/// Shows a repo-at-a-glance summary: branch, branches, status, stash, tags, remote, guide.
 /// </summary>
 public class DashboardExplorer(string gitDir)
 	: BaseExplorer(gitDir, new Guid("e4f5a6b7-c8d9-4e0f-1a2b-3c4d5e6f7a8b"))
@@ -23,7 +23,7 @@ public class DashboardExplorer(string gitDir)
 
 		if (head.IsTracking && head.TrackingDetails is { } td)
 		{
-			if (td.AheadBy > 0) branchLabel += $"  +{td.AheadBy} to push";
+			if (td.AheadBy  > 0) branchLabel += $"  +{td.AheadBy} to push";
 			if (td.BehindBy > 0) branchLabel += $"  -{td.BehindBy} to pull";
 		}
 
@@ -33,13 +33,23 @@ public class DashboardExplorer(string gitDir)
 
 		yield return new DashboardFile("Branch", branchLabel, tipInfo, DashboardSection.Branch);
 
+		// --- Branches row ---
+		var localCount  = repo.Branches.Count(b => !b.IsRemote);
+		var remoteCount = repo.Branches.Count(b => b.IsRemote);
+		var branchesValue = $"{localCount} local";
+		var branchesDetail = remoteCount > 0
+			? $"{remoteCount} remote-tracking  (Enter to manage)"
+			: "Enter to create, switch, or merge branches";
+
+		yield return new DashboardFile("Branches", branchesValue, branchesDetail, DashboardSection.Branches);
+
 		// --- Working tree status ---
 		if (!repo.Info.IsBare)
 		{
 			var status = repo.RetrieveStatus(new StatusOptions { IncludeUntracked = true });
 
-			var stagedCount = status.Count(e => Lib.StagedSymbol(e.State) != " ");
-			var unstagedCount = status.Count(e => Lib.UnstagedSymbol(e.State) != " ");
+			var stagedCount    = status.Count(e => Lib.StagedSymbol(e.State)   != " ");
+			var unstagedCount  = status.Count(e => Lib.UnstagedSymbol(e.State) != " ");
 			var untrackedCount = status.Untracked.Count();
 
 			yield return new DashboardFile(
@@ -76,6 +86,22 @@ public class DashboardExplorer(string gitDir)
 			tagCount > 0 ? $"{tagCount} tag{(tagCount == 1 ? "" : "s")}" : "none",
 			tagCount > 0 ? "Enter to manage" : "no tags",
 			DashboardSection.Tags);
+
+		// --- Remote row ---
+		var remotes = repo.Network.Remotes.ToList();
+		var remoteValue  = remotes.Count > 0 ? remotes[0].Name : "none";
+		var remoteDetail = remotes.Count > 0
+			? $"{remotes[0].Url}  (Enter to fetch / pull / push)"
+			: "no remotes configured — Enter to add one";
+
+		yield return new DashboardFile("Remote", remoteValue, remoteDetail, DashboardSection.Remote);
+
+		// --- Guide row ---
+		yield return new DashboardFile(
+			"Guide",
+			"Reference",
+			"Git concepts, commands, and workflows explained — Enter to open",
+			DashboardSection.Guide);
 
 		// Update panel title
 		if (args.Panel is DashboardPanel panel && panel.Title is null)

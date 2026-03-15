@@ -32,6 +32,25 @@ static class Const
 	public const string TagDelete = "&Delete tag";
 	public const string TagShow = "&Show commit";
 
+	// Branch panel
+	public const string MenuBranches  = "&Branches";
+	public const string BranchCheckout = "&Switch to branch";
+	public const string BranchCreate   = "&Create branch...";
+	public const string BranchMerge    = "&Merge into current";
+	public const string BranchDelete   = "&Delete branch";
+	public const string BranchLog      = "Show &log";
+
+	// Remote panel
+	public const string MenuRemote  = "Re&mote";
+	public const string RemoteFetch = "&Fetch";
+	public const string RemotePull  = "&Pull";
+	public const string RemotePush  = "&Push";
+	public const string RemoteAdd   = "&Add remote...";
+	public const string RemoteClone = "&Clone repository...";
+
+	// Guide panel
+	public const string MenuGuide = "Git &Reference Guide";
+
 	// Guided workflows
 	public const string GuideMe = "&Guide Me...";
 

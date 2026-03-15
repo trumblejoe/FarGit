@@ -15,21 +15,36 @@ static class Wizard
 	{
 		var menu = Far.Api.CreateMenu();
 		menu.Title = "Git Guide  —  What do you want to do?";
-		menu.Add("💾  Save my changes  (stage + commit)");
-		menu.Add("↩  Undo changes to a file");
-		menu.Add("📦  Set work aside temporarily  (stash)");
-		menu.Add("🔖  Mark a release version  (tag)");
-		menu.Add("🔍  See what has changed  (status)");
+		menu.Add("Save my changes  (stage + commit)");
+		menu.Add("Undo changes to a file");
+		menu.Add("Set work aside temporarily  (stash)");
+		menu.Add("Mark a release version  (tag)");
+		menu.Add("See what has changed  (status)");
+		menu.Add("─────────────────────────────").IsSeparator = true;
+		menu.Add("Start a new branch");
+		menu.Add("Switch to a different branch");
+		menu.Add("Combine branches  (merge)");
+		menu.Add("─────────────────────────────").IsSeparator = true;
+		menu.Add("Get latest changes from remote  (pull)");
+		menu.Add("Share my work  (push)");
+		menu.Add("Get a copy of a repository  (clone)");
 
 		if (!menu.Show()) return;
 
 		switch (menu.Selected)
 		{
-			case 0: SaveChanges(gitDir, panel); break;
-			case 1: UndoChanges(gitDir, panel); break;
-			case 2: StashWork(gitDir, panel); break;
-			case 3: MarkVersion(gitDir, panel); break;
-			case 4: ReviewStatus(gitDir, panel); break;
+			case 0:  SaveChanges(gitDir, panel);   break;
+			case 1:  UndoChanges(gitDir, panel);   break;
+			case 2:  StashWork(gitDir, panel);      break;
+			case 3:  MarkVersion(gitDir, panel);    break;
+			case 4:  ReviewStatus(gitDir, panel);   break;
+			// separators are 5 and 9 and 13 — Selected skips them
+			case 6:  CreateBranch(gitDir, panel);   break;
+			case 7:  SwitchBranch(gitDir, panel);   break;
+			case 8:  MergeBranch(gitDir, panel);    break;
+			case 10: PullLatest(gitDir, panel);     break;
+			case 11: PushWork(gitDir, panel);       break;
+			case 12: CloneRepo(panel);              break;
 		}
 	}
 
@@ -42,6 +57,10 @@ static class Wizard
 	static bool Step(string body, string title = "Git Guide")
 		=> 0 == Far.Api.Message(body, title, (MessageOptions)0, ["Continue", "Cancel"]);
 
+	/// <summary>Shows an info message with only an OK button.</summary>
+	static void Info(string body, string title = "Git Guide")
+		=> Far.Api.Message(body, title);
+
 	// ── Workflow 1: Save My Changes ──────────────────────────────────────────
 
 	static void SaveChanges(string gitDir, Panels.DashboardPanel panel)
@@ -53,7 +72,7 @@ static class Wizard
 			"  2. COMMIT — seal them with a short description\n\n" +
 			"Think of staging like putting items into a box\n" +
 			"before you seal and label it.\n\n" +
-			"Press Enter to continue, Esc to cancel."))
+			"Press Continue, Esc to cancel."))
 			return;
 
 		int stagedCount, changedCount;
@@ -67,22 +86,20 @@ static class Wizard
 
 		if (stagedCount == 0 && changedCount == 0)
 		{
-			Step("Your working tree is already clean — nothing to save!\n\n" +
+			Info("Your working tree is already clean — nothing to save!\n\n" +
 			     "All your changes have already been committed.");
 			return;
 		}
 
 		if (stagedCount == 0)
 		{
-			// Nothing staged — guide user through staging
 			if (!Step(
 				$"STEP 1 of 2: STAGE\n\n" +
 				$"You have {changedCount} changed file(s) that are not yet staged.\n\n" +
 				$"Staging means: tell git 'include these changes in my next save'.\n\n" +
-				$"Press Enter to stage ALL changed files now.\n\n" +
-				$"Tip: If you only want to save some files, press Esc here,\n" +
-				$"open Status (Enter on the Dashboard), select files with\n" +
-				$"the Space bar, then press F5 to stage just those files."))
+				$"Press Continue to stage ALL changed files now.\n\n" +
+				$"Tip: If you only want to save some files, press Cancel here,\n" +
+				$"open Status, select files with the Space bar, then press F5."))
 				return;
 
 			using var repo = new Repository(gitDir);
@@ -96,7 +113,6 @@ static class Wizard
 			     $"Skipping staging — moving on to commit.");
 		}
 
-		// Step 2: Commit
 		if (!Step(
 			"STEP 2 of 2: COMMIT\n\n" +
 			$"You are about to commit {stagedCount} file(s).\n\n" +
@@ -105,7 +121,7 @@ static class Wizard
 			"  • Add dark mode support\n" +
 			"  • Update README with install instructions\n\n" +
 			"Keep it short but meaningful — future-you will thank you!\n\n" +
-			"Press Enter to open the commit editor."))
+			"Press Continue to open the commit editor."))
 			return;
 
 		Commands.Commit.Open(gitDir, false);
@@ -126,7 +142,7 @@ static class Wizard
 			"undo for this operation.\n\n" +
 			"If you want to keep your changes but just set them\n" +
 			"aside temporarily, use 'Set work aside (stash)' instead.\n\n" +
-			"Press Enter to open the Status panel."))
+			"Press Continue to open the Status panel."))
 			return;
 
 		if (!Step(
@@ -138,7 +154,7 @@ static class Wizard
 			"To undo several files at once:\n" +
 			"  • Press Space on each file to mark it (a bullet appears)\n" +
 			"  • Then press F8 to revert all marked files\n\n" +
-			"Press Enter to open Status now."))
+			"Press Continue to open Status now."))
 			return;
 
 		new Panels.StatusExplorer(gitDir).CreatePanel().OpenChild(panel);
@@ -157,7 +173,7 @@ static class Wizard
 			"  • Try something else and come back later\n\n" +
 			"Your changes are saved privately and your files go back\n" +
 			"to the last commit state. You can restore them any time.\n\n" +
-			"Press Enter to create a stash now, Esc to cancel."))
+			"Press Continue to create a stash now, Cancel to abort."))
 			return;
 
 		int changedCount;
@@ -171,7 +187,7 @@ static class Wizard
 
 		if (changedCount == 0)
 		{
-			Step("Your working tree is clean — there is nothing to stash!\n\n" +
+			Info("Your working tree is clean — there is nothing to stash!\n\n" +
 			     "Make some changes first, then come back here.");
 			return;
 		}
@@ -181,10 +197,8 @@ static class Wizard
 			"FarGit-stash",
 			"Create Stash");
 
-		if (description is null) return; // user pressed Esc
-
-		if (string.IsNullOrWhiteSpace(description))
-			description = "WIP";
+		if (description is null) return;
+		if (string.IsNullOrWhiteSpace(description)) description = "WIP";
 
 		try
 		{
@@ -193,7 +207,7 @@ static class Wizard
 			repo.Stashes.Add(sig, description,
 				StashModifiers.IncludeUntracked | StashModifiers.KeepIndex);
 
-			Step($"✓ Stash created: \"{description}\"\n\n" +
+			Info($"Stash created: \"{description}\"\n\n" +
 			     $"Your {changedCount} changed file(s) are safely stored.\n" +
 			     $"Your working directory is now clean.\n\n" +
 			     $"To restore your work later:\n" +
@@ -222,7 +236,7 @@ static class Wizard
 			"  • v2.3.1 — patch release\n" +
 			"  • beta-1 — pre-release\n\n" +
 			"The tag will point to your most recent commit (HEAD).\n\n" +
-			"Press Enter to create a tag, Esc to cancel."))
+			"Press Continue to create a tag, Cancel to abort."))
 			return;
 
 		string tipSha, tipMsg;
@@ -230,7 +244,7 @@ static class Wizard
 		{
 			if (repo.Head.Tip is null)
 			{
-				Step("There are no commits yet — make your first commit before tagging.");
+				Info("There are no commits yet — make your first commit before tagging.");
 				return;
 			}
 			tipSha = repo.Head.Tip.Sha[..7];
@@ -250,7 +264,7 @@ static class Wizard
 			using var repo = new Repository(gitDir);
 			repo.ApplyTag(tagName);
 
-			Step($"✓ Tag '{tagName}' created on commit {tipSha}\n\n" +
+			Info($"Tag '{tagName}' created on commit {tipSha}\n\n" +
 			     $"\"{tipMsg}\"\n\n" +
 			     $"You can view and manage all tags from the Dashboard\n" +
 			     $"by pressing Enter on the Tags row.");
@@ -274,8 +288,8 @@ static class Wizard
 		{
 			branch = repo.Head.FriendlyName;
 			var status = repo.RetrieveStatus(new StatusOptions { IncludeUntracked = true });
-			stagedCount   = status.Count(e => Lib.StagedSymbol(e.State)   != " ");
-			unstagedCount = status.Count(e => Lib.UnstagedSymbol(e.State) != " ");
+			stagedCount    = status.Count(e => Lib.StagedSymbol(e.State)   != " ");
+			unstagedCount  = status.Count(e => Lib.UnstagedSymbol(e.State) != " ");
 			untrackedCount = status.Untracked.Count();
 		}
 
@@ -284,17 +298,12 @@ static class Wizard
 		summary.AppendLine($"Branch: {branch}\n");
 
 		if (stagedCount == 0 && unstagedCount == 0 && untrackedCount == 0)
-		{
 			summary.AppendLine("Everything is clean — no pending changes.");
-		}
 		else
 		{
-			if (stagedCount > 0)
-				summary.AppendLine($"  Staged:    {stagedCount} file(s)  ← ready to commit");
-			if (unstagedCount > 0)
-				summary.AppendLine($"  Unstaged:  {unstagedCount} file(s)  ← changed, not yet staged");
-			if (untrackedCount > 0)
-				summary.AppendLine($"  Untracked: {untrackedCount} file(s)  ← new, not yet tracked");
+			if (stagedCount   > 0) summary.AppendLine($"  Staged:    {stagedCount} file(s)    ← ready to commit");
+			if (unstagedCount > 0) summary.AppendLine($"  Unstaged:  {unstagedCount} file(s)  ← changed, not yet staged");
+			if (untrackedCount > 0) summary.AppendLine($"  Untracked: {untrackedCount} file(s) ← new, not yet tracked");
 
 			summary.AppendLine();
 			if (stagedCount > 0)
@@ -303,8 +312,7 @@ static class Wizard
 				summary.AppendLine("Nothing staged yet. Use 'Save my changes' to stage and commit.");
 		}
 
-		summary.Append("\nPress Enter to open the Status panel for details.");
-
+		summary.Append("\nPress Continue to open the Status panel for details.");
 		if (!Step(summary.ToString())) return;
 
 		if (!Step(
@@ -319,9 +327,376 @@ static class Wizard
 			"  F5  — stage the highlighted file\n" +
 			"  F7  — commit staged changes\n" +
 			"  F8  — revert (undo) changes — cannot be undone!\n\n" +
-			"Press Enter to open Status now."))
+			"Press Continue to open Status now."))
 			return;
 
 		new Panels.StatusExplorer(gitDir).CreatePanel().OpenChild(panel);
+	}
+
+	// ── Workflow 6: Create Branch ────────────────────────────────────────────
+
+	static void CreateBranch(string gitDir, Panels.DashboardPanel panel)
+	{
+		string currentBranch;
+		using (var repo = new Repository(gitDir))
+			currentBranch = repo.Head.FriendlyName;
+
+		if (!Step(
+			"START A NEW BRANCH\n\n" +
+			"A branch is your own isolated workspace.\n" +
+			"Changes you make on a branch don't affect other branches\n" +
+			"until you deliberately merge them.\n\n" +
+			$"You are currently on: '{currentBranch}'\n\n" +
+			"The new branch will start from exactly where you are now.\n\n" +
+			"Good branch naming:\n" +
+			"  • feature/user-login\n" +
+			"  • bugfix/reset-password\n" +
+			"  • hotfix/crash-on-start\n\n" +
+			"Press Continue to name and create the branch."))
+			return;
+
+		var name = Far.Api.Input(
+			$"New branch name (branching from '{currentBranch}'):",
+			"FarGit-branch",
+			"Create Branch");
+
+		if (string.IsNullOrWhiteSpace(name)) return;
+		name = name.Trim();
+
+		try
+		{
+			using var repo = new Repository(gitDir);
+			var branch = repo.CreateBranch(name);
+			LibGit2Sharp.Commands.Checkout(repo, branch);
+
+			Info($"You are now on branch '{name}'.\n\n" +
+			     $"Any commits you make will be on this branch.\n" +
+			     $"'{currentBranch}' remains exactly as it was.\n\n" +
+			     $"When you're done, use 'Combine branches (merge)' to\n" +
+			     $"bring your changes back into '{currentBranch}'.");
+
+			panel.Update(true);
+			panel.Redraw();
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Workflow 7: Switch Branch ────────────────────────────────────────────
+
+	static void SwitchBranch(string gitDir, Panels.DashboardPanel panel)
+	{
+		List<string> branchNames;
+		string currentBranch;
+
+		using (var repo = new Repository(gitDir))
+		{
+			currentBranch = repo.Head.FriendlyName;
+			branchNames = repo.Branches
+				.Where(b => !b.IsRemote && !b.IsCurrentRepositoryHead)
+				.OrderBy(b => b.FriendlyName)
+				.Select(b => b.FriendlyName)
+				.ToList();
+		}
+
+		if (branchNames.Count == 0)
+		{
+			Info($"There are no other branches to switch to.\n\n" +
+			     $"You only have '{currentBranch}'. Use 'Start a new branch'\n" +
+			     $"to create one.");
+			return;
+		}
+
+		if (!Step(
+			"SWITCH TO A DIFFERENT BRANCH\n\n" +
+			"Switching branches changes the files you see to match\n" +
+			"the state of that branch.\n\n" +
+			"⚠ Important: Commit or stash your current changes first!\n" +
+			"Uncommitted changes may conflict with the branch you're switching to.\n\n" +
+			$"Currently on: '{currentBranch}'\n\n" +
+			"Press Continue to pick a branch."))
+			return;
+
+		var menu = Far.Api.CreateMenu();
+		menu.Title = "Switch to branch:";
+		foreach (var b in branchNames)
+			menu.Add(b);
+
+		if (!menu.Show()) return;
+		var target = branchNames[menu.Selected];
+
+		try
+		{
+			using var repo = new Repository(gitDir);
+			var branch = repo.Branches[target];
+			LibGit2Sharp.Commands.Checkout(repo, branch);
+
+			Info($"Switched to '{target}'.\n\n" +
+			     $"Your files now reflect the state of this branch.\n" +
+			     $"Any new commits will be added to '{target}'.");
+
+			panel.Update(true);
+			panel.Redraw();
+		}
+		catch (CheckoutConflictException ex)
+		{
+			Far.Api.Message(
+				$"Cannot switch — you have uncommitted changes that would conflict:\n\n{ex.Message}\n\n" +
+				"Tip: Stage and commit your changes, or use\n" +
+				"'Set work aside temporarily (stash)' first.",
+				Const.ModuleName, MessageOptions.Warning);
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Workflow 8: Merge Branch ─────────────────────────────────────────────
+
+	static void MergeBranch(string gitDir, Panels.DashboardPanel panel)
+	{
+		string currentBranch;
+		List<string> branchNames;
+
+		using (var repo = new Repository(gitDir))
+		{
+			currentBranch = repo.Head.FriendlyName;
+			branchNames = repo.Branches
+				.Where(b => !b.IsRemote && !b.IsCurrentRepositoryHead)
+				.OrderBy(b => b.FriendlyName)
+				.Select(b => b.FriendlyName)
+				.ToList();
+		}
+
+		if (branchNames.Count == 0)
+		{
+			Info("There are no other branches to merge from.");
+			return;
+		}
+
+		if (!Step(
+			"COMBINE BRANCHES  (Merge)\n\n" +
+			"Merging takes the commits from another branch and brings\n" +
+			"them into your current branch.\n\n" +
+			$"Currently on: '{currentBranch}'\n\n" +
+			"You will pick which branch to merge INTO this one.\n\n" +
+			"What can happen:\n" +
+			"  • CLEAN: git merges automatically, nothing to do\n" +
+			"  • CONFLICTS: same parts changed in both branches,\n" +
+			"    you'll need to choose which version to keep\n\n" +
+			"Press Continue to pick the branch to merge in."))
+			return;
+
+		var menu = Far.Api.CreateMenu();
+		menu.Title = $"Merge into '{currentBranch}' from:";
+		foreach (var b in branchNames)
+			menu.Add(b);
+
+		if (!menu.Show()) return;
+		var source = branchNames[menu.Selected];
+
+		try
+		{
+			using var repo = new Repository(gitDir);
+			var sig = Lib.BuildSignature(repo);
+			var result = repo.Merge(repo.Branches[source], sig, new MergeOptions());
+
+			switch (result.Status)
+			{
+				case MergeStatus.FastForward:
+					Info($"Merge complete!\n\n" +
+					     $"'{source}' was merged into '{currentBranch}' cleanly.\n" +
+					     $"(Fast-forward: no separate merge commit needed.)");
+					break;
+
+				case MergeStatus.NonFastForward:
+					Info($"Merge complete!\n\n" +
+					     $"A merge commit was created combining '{source}'\n" +
+					     $"and '{currentBranch}'.");
+					break;
+
+				case MergeStatus.Conflicts:
+					Info("Merge has CONFLICTS.\n\n" +
+					     "Some files were changed on both branches and git\n" +
+					     "couldn't automatically decide which version to use.\n\n" +
+					     "To resolve:\n" +
+					     "  1. Open Status (Dashboard → Staged/Unstaged)\n" +
+					     "  2. Open each conflicted file in the editor (F4)\n" +
+					     "  3. Look for <<<<<<< markers and edit to keep the right code\n" +
+					     "  4. Delete all conflict markers\n" +
+					     "  5. Stage the file (F5) and commit (F7)");
+					break;
+
+				case MergeStatus.UpToDate:
+					Info($"Nothing to merge — '{currentBranch}' already\n" +
+					     $"contains all commits from '{source}'.");
+					break;
+			}
+
+			panel.Update(true);
+			panel.Redraw();
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Workflow 9: Pull Latest ──────────────────────────────────────────────
+
+	static void PullLatest(string gitDir, Panels.DashboardPanel panel)
+	{
+		string branch, remoteName;
+		using (var repo = new Repository(gitDir))
+		{
+			branch     = repo.Head.FriendlyName;
+			remoteName = repo.Head.IsTracking
+				? (repo.Head.TrackedBranch.RemoteName ?? "origin")
+				: "origin";
+		}
+
+		if (!Step(
+			"GET LATEST CHANGES FROM REMOTE  (Pull)\n\n" +
+			"Pull downloads the latest commits from the server and\n" +
+			"merges them into your current branch.\n\n" +
+			$"Branch:  {branch}\n" +
+			$"Remote:  {remoteName}\n\n" +
+			"Best practice: commit or stash your changes first!\n" +
+			"Pulling with uncommitted changes can cause conflicts.\n\n" +
+			"If credentials are needed, you will be prompted.\n" +
+			"For GitHub: use a Personal Access Token (PAT), not your password.\n\n" +
+			"Press Continue to pull now."))
+			return;
+
+		try
+		{
+			var result = Commands.RemoteOps.Pull(gitDir);
+
+			switch (result.Status)
+			{
+				case MergeStatus.FastForward:
+					Info($"Pull complete!\n\n" +
+					     $"Your branch is now up to date with {remoteName}.\n" +
+					     $"HEAD is at {result.Commit?.Sha[..7]}.");
+					break;
+
+				case MergeStatus.NonFastForward:
+					Info("Pull complete — a merge commit was created\n" +
+					     "to combine your local commits with the remote ones.");
+					break;
+
+				case MergeStatus.Conflicts:
+					Info("Pull complete but there are MERGE CONFLICTS.\n\n" +
+					     "Open Status to see conflicted files, resolve the\n" +
+					     "conflict markers (<<<<<<< / ======= / >>>>>>>),\n" +
+					     "then stage and commit to finish the merge.");
+					break;
+
+				case MergeStatus.UpToDate:
+					Info("Already up to date — no new changes to pull.");
+					break;
+			}
+
+			panel.Update(true);
+			panel.Redraw();
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Workflow 10: Push Work ───────────────────────────────────────────────
+
+	static void PushWork(string gitDir, Panels.DashboardPanel panel)
+	{
+		string branch;
+		bool hasTracking;
+		using (var repo = new Repository(gitDir))
+		{
+			branch      = repo.Head.FriendlyName;
+			hasTracking = repo.Head.IsTracking;
+		}
+
+		var trackingNote = hasTracking
+			? "Your branch is already linked to a remote — the push will go there."
+			: "This branch has no remote link yet.\nYou'll be asked which remote to push to (usually 'origin').";
+
+		if (!Step(
+			"SHARE MY WORK  (Push)\n\n" +
+			"Push uploads your local commits to the remote server\n" +
+			"so your team can see them (or so you have a backup).\n\n" +
+			$"Branch: {branch}\n\n" +
+			$"{trackingNote}\n\n" +
+			"If credentials are needed, you will be prompted.\n" +
+			"For GitHub: use a Personal Access Token (PAT), not your password.\n\n" +
+			"Press Continue to push now."))
+			return;
+
+		try
+		{
+			Commands.RemoteOps.Push(gitDir);
+			Info($"Push complete!\n\n" +
+			     $"Your commits on '{branch}' are now on the remote server.");
+
+			panel.Update(true);
+			panel.Redraw();
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
+	}
+
+	// ── Workflow 11: Clone Repository ────────────────────────────────────────
+
+	static void CloneRepo(Panels.DashboardPanel panel)
+	{
+		if (!Step(
+			"GET A COPY OF A REPOSITORY  (Clone)\n\n" +
+			"Cloning downloads a complete copy of a git repository\n" +
+			"to your machine, including all history and branches.\n\n" +
+			"You need:\n" +
+			"  1. The repository URL  (from GitHub, GitLab, etc.)\n" +
+			"  2. A local folder to clone into\n\n" +
+			"Finding the URL on GitHub:\n" +
+			"  • Open the repo page on github.com\n" +
+			"  • Click the green 'Code' button\n" +
+			"  • Copy the HTTPS URL\n\n" +
+			"Press Continue to enter the URL and destination."))
+			return;
+
+		var url = Far.Api.Input(
+			"Repository URL:\n(e.g. https://github.com/user/project.git)",
+			"FarGit-clone-url",
+			"Clone Repository");
+
+		if (string.IsNullOrWhiteSpace(url)) return;
+
+		var defaultDir = Far.Api.CurrentDirectory;
+		var localPath = Far.Api.Input(
+			$"Local destination folder:\n(repository will be cloned into a subfolder here)",
+			"FarGit-clone-path",
+			"Clone Repository") ?? defaultDir;
+
+		if (string.IsNullOrWhiteSpace(localPath)) return;
+
+		try
+		{
+			var result = Commands.RemoteOps.Clone(url.Trim(), localPath.Trim());
+
+			Info($"Clone complete!\n\n" +
+			     $"Repository cloned to:\n{result}\n\n" +
+			     $"To open it in FarGit:\n" +
+			     $"  1. Navigate to the cloned folder in FAR\n" +
+			     $"  2. Press F11 and open FarGit");
+		}
+		catch (Exception ex)
+		{
+			Far.Api.Message(ex.Message, Const.ModuleName, MessageOptions.Warning);
+		}
 	}
 }

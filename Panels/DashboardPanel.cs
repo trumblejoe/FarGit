@@ -5,10 +5,11 @@ namespace FarGit.Panels;
 
 /// <summary>
 /// The main FarGit entry panel.
-/// Shows a repo-at-a-glance: branch, staged/unstaged/untracked counts, stash, tags.
+/// Shows a repo-at-a-glance: branch, branches, staged/unstaged/untracked counts, stash, tags, remote, guide.
 ///
 /// Key bindings:
-///   Enter        – open the relevant sub-panel (status, stash, tags)
+///   Enter        – open the relevant sub-panel
+///   F2           – guided workflows (Guide Me)
 ///   F5           – stage all changes
 ///   F7           – open commit dialog
 ///   ShiftF7      – amend last commit
@@ -21,7 +22,7 @@ public class DashboardPanel : BasePanel
 
 		// Columns: section name | value | description
 		var cn = new SetColumn { Kind = "N", Name = "Section", Width = 10 };
-		var co = new SetColumn { Kind = "O", Name = "Value", Width = 22 };
+		var co = new SetColumn { Kind = "O", Name = "Value",   Width = 22 };
 		var cz = new SetColumn { Kind = "Z", Name = "Details" };
 
 		var plan0 = new PanelPlan { Columns = [cn, co, cz] };
@@ -29,13 +30,13 @@ public class DashboardPanel : BasePanel
 		SetView(plan0);
 
 		SetKeyBars([
-			new KeyBar(KeyCode.F2, ControlKeyStates.None, "Guide", "Guided git workflows"),
-			new KeyBar(KeyCode.F3, ControlKeyStates.None, "", ""),
-			new KeyBar(KeyCode.F4, ControlKeyStates.None, "", ""),
-			new KeyBar(KeyCode.F5, ControlKeyStates.None, "StageAll", "Stage all changes"),
-			new KeyBar(KeyCode.F6, ControlKeyStates.None, "", ""),
-			new KeyBar(KeyCode.F7, ControlKeyStates.None, "Commit", "Commit staged changes"),
-			new KeyBar(KeyCode.F8, ControlKeyStates.None, "", ""),
+			new KeyBar(KeyCode.F2, ControlKeyStates.None,      "Guide",    "Guided git workflows"),
+			new KeyBar(KeyCode.F3, ControlKeyStates.None,      "",         ""),
+			new KeyBar(KeyCode.F4, ControlKeyStates.None,      "",         ""),
+			new KeyBar(KeyCode.F5, ControlKeyStates.None,      "StageAll", "Stage all changes"),
+			new KeyBar(KeyCode.F6, ControlKeyStates.None,      "",         ""),
+			new KeyBar(KeyCode.F7, ControlKeyStates.None,      "Commit",   "Commit staged changes"),
+			new KeyBar(KeyCode.F8, ControlKeyStates.None,      "",         ""),
 			new KeyBar(KeyCode.F7, ControlKeyStates.ShiftPressed, "Amend", "Amend last commit"),
 		]);
 	}
@@ -44,11 +45,13 @@ public class DashboardPanel : BasePanel
 
 	// --- Navigation --------------------------------------------------------
 
-	void OpenStatus() => new StatusExplorer(GitDir).CreatePanel().OpenChild(this);
-	void OpenStash() => new StashExplorer(GitDir).CreatePanel().OpenChild(this);
-	void OpenTags() => new TagExplorer(GitDir).CreatePanel().OpenChild(this);
+	void OpenStatus()   => new StatusExplorer(GitDir).CreatePanel().OpenChild(this);
+	void OpenBranches() => new BranchExplorer(GitDir).CreatePanel().OpenChild(this);
+	void OpenStash()    => new StashExplorer(GitDir).CreatePanel().OpenChild(this);
+	void OpenTags()     => new TagExplorer(GitDir).CreatePanel().OpenChild(this);
+	void OpenRemote()   => new RemoteExplorer(GitDir).CreatePanel().OpenChild(this);
+	void OpenGuideRef() => new GuideExplorer(GitDir).CreatePanel().OpenChild(this);
 	void OpenCommit(bool amend) => Commands.Commit.Open(GitDir, amend);
-
 	void OpenGuide() => Wizard.Show(GitDir, this);
 
 	// --- Actions -----------------------------------------------------------
@@ -65,16 +68,19 @@ public class DashboardPanel : BasePanel
 
 	internal override void AddMenu(IMenu menu)
 	{
-		menu.Add(Const.GuideMe, (_, _) => OpenGuide());
+		menu.Add(Const.GuideMe,       (_, _) => OpenGuide());
+		menu.Add(Const.MenuGuide,     (_, _) => OpenGuideRef());
 		menu.Add(string.Empty).IsSeparator = true;
-		menu.Add(Const.MenuStatus, (_, _) => OpenStatus());
-		menu.Add(Const.MenuStash, (_, _) => OpenStash());
-		menu.Add(Const.MenuTags, (_, _) => OpenTags());
+		menu.Add(Const.MenuStatus,    (_, _) => OpenStatus());
+		menu.Add(Const.MenuBranches,  (_, _) => OpenBranches());
+		menu.Add(Const.MenuRemote,    (_, _) => OpenRemote());
+		menu.Add(Const.MenuStash,     (_, _) => OpenStash());
+		menu.Add(Const.MenuTags,      (_, _) => OpenTags());
 		menu.Add(string.Empty).IsSeparator = true;
-		menu.Add(Const.MenuCommit, (_, _) => OpenCommit(false));
-		menu.Add(Const.MenuAmend, (_, _) => OpenCommit(true));
+		menu.Add(Const.MenuCommit,    (_, _) => OpenCommit(false));
+		menu.Add(Const.MenuAmend,     (_, _) => OpenCommit(true));
 		menu.Add(string.Empty).IsSeparator = true;
-		menu.Add(Const.StageAll, (_, _) => StageAll());
+		menu.Add(Const.StageAll,      (_, _) => StageAll());
 	}
 
 	public override void UIOpenFile(FarFile file)
@@ -83,10 +89,15 @@ public class DashboardPanel : BasePanel
 
 		switch (df.Section)
 		{
+			case DashboardSection.Branch:
 			case DashboardSection.Staged:
 			case DashboardSection.Unstaged:
 			case DashboardSection.Untracked:
 				OpenStatus();
+				break;
+
+			case DashboardSection.Branches:
+				OpenBranches();
 				break;
 
 			case DashboardSection.Stash:
@@ -97,8 +108,12 @@ public class DashboardPanel : BasePanel
 				OpenTags();
 				break;
 
-			case DashboardSection.Branch:
-				OpenStatus();
+			case DashboardSection.Remote:
+				OpenRemote();
+				break;
+
+			case DashboardSection.Guide:
+				OpenGuideRef();
 				break;
 		}
 	}

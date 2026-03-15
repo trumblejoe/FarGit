@@ -9,7 +9,14 @@
     <OutDir>$(FarHome)\FarNet\Modules\$(AssemblyName)</OutDir>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="$(FarHome)\FarNet\FarNet.dll">
+    <!-- When FarNet is installed at FarHome, use the installed DLL (matches runtime version exactly).
+         Otherwise fall back to the checked-in lib/FarNet.dll for building without a local FAR installation.
+         lib/FarNet.dll is intentionally excluded from git (see .gitignore); obtain it by running:
+           dotnet tool install -g FarNet.Bootstrapper  (or copy from a FarNet release zip) -->
+    <Reference Condition="Exists('$(FarHome)\FarNet\FarNet.dll')" Include="$(FarHome)\FarNet\FarNet.dll">
+      <Private>False</Private>
+    </Reference>
+    <Reference Condition="!Exists('$(FarHome)\FarNet\FarNet.dll')" Include="$(MSBuildProjectDirectory)\lib\FarNet.dll">
       <Private>False</Private>
     </Reference>
   </ItemGroup>

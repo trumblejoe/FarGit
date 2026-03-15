@@ -52,9 +52,13 @@ public class TagPanel : BasePanel
 		var patch = repo.Diff.Compare<Patch>(parent?.Tree, commit.Tree);
 		var text = patch.Content.Replace("\uFEFF", string.Empty);
 
+		var tmp = Path.ChangeExtension(Path.GetTempFileName(), ".diff");
+		File.WriteAllText(tmp, text, System.Text.Encoding.UTF8);
+
 		var viewer = Far.Api.CreateViewer();
-		viewer.Text = text;
+		viewer.FileName = tmp;
 		viewer.Title = $"Tag {f.Name}: {commit.MessageShort}";
+		viewer.DeleteSource = DeleteSource.File;
 		viewer.Open();
 	}
 

@@ -1,5 +1,4 @@
 using FarNet;
-using FarGit.Commands;
 using LibGit2Sharp;
 
 namespace FarGit.Panels;
@@ -8,7 +7,7 @@ namespace FarGit.Panels;
 /// Panel showing git working-tree status.
 ///
 /// Key bindings:
-///   Space / Ins  – toggle stage/unstage for current file
+///   Space        – toggle stage/unstage for current file
 ///   F4           – open file in editor
 ///   Enter        – view diff patch for current file
 ///   ShiftF2      – open commit dialog
@@ -41,9 +40,9 @@ public class StatusPanel : BasePanel
 
 		using var repo = UseRepository();
 		if (file.IsStaged)
-			Commands.Unstage(repo, file.Name);
+			LibGit2Sharp.Commands.Unstage(repo, file.Name);
 		else
-			Commands.Stage(repo, file.Name);
+			LibGit2Sharp.Commands.Stage(repo, file.Name);
 
 		Update(true);
 		Redraw();
@@ -52,7 +51,7 @@ public class StatusPanel : BasePanel
 	void StageAll()
 	{
 		using var repo = UseRepository();
-		Commands.Stage(repo, "*");
+		LibGit2Sharp.Commands.Stage(repo, "*");
 		Update(true);
 		Redraw();
 	}
@@ -60,7 +59,7 @@ public class StatusPanel : BasePanel
 	void UnstageAll()
 	{
 		using var repo = UseRepository();
-		Commands.Unstage(repo, "*");
+		LibGit2Sharp.Commands.Unstage(repo, "*");
 		Update(true);
 		Redraw();
 	}
@@ -89,7 +88,6 @@ public class StatusPanel : BasePanel
 		string patch;
 		if (file.IsStaged)
 		{
-			// diff HEAD..index for this file
 			var changes = repo.Diff.Compare<Patch>([file.Name], false);
 			patch = changes.Content;
 		}
@@ -100,22 +98,31 @@ public class StatusPanel : BasePanel
 		}
 		else
 		{
-			// diff index..workdir for this file
 			var changes = repo.Diff.Compare<Patch>([file.Name], true);
 			patch = changes.Content;
 		}
 
-		patch = patch.Replace("\uFEFF", string.Empty);
-
-		var viewer = Far.Api.CreateViewer();
-		viewer.Text = patch;
-		viewer.Title = $"Diff: {file.Name}";
-		viewer.Open();
+		OpenPatchViewer(patch, $"Diff: {file.Name}");
 	}
 
 	void OpenCommit(bool amend)
 	{
 		Commands.Commit.Open(GitDir, amend);
+	}
+
+	// --- Helpers -----------------------------------------------------------
+
+	static void OpenPatchViewer(string content, string title)
+	{
+		content = content.Replace("\uFEFF", string.Empty);
+		var tmp = Path.ChangeExtension(Path.GetTempFileName(), ".diff");
+		File.WriteAllText(tmp, content, System.Text.Encoding.UTF8);
+
+		var viewer = Far.Api.CreateViewer();
+		viewer.FileName = tmp;
+		viewer.Title = title;
+		viewer.DeleteSource = DeleteSource.File;
+		viewer.Open();
 	}
 
 	// --- Menu / key handling -----------------------------------------------
@@ -140,7 +147,7 @@ public class StatusPanel : BasePanel
 	{
 		switch (key.VirtualKeyCode)
 		{
-			case KeyCode.Space when key.Is():
+			case KeyCode.Spacebar when key.Is():
 				ToggleStage();
 				return true;
 

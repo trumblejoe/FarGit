@@ -108,9 +108,13 @@ public class StashPanel : BasePanel
 		var patch = repo.Diff.Compare<Patch>(parent.Tree, stash.WorkTree.Tree);
 		var text = patch.Content.Replace("\uFEFF", string.Empty);
 
+		var tmp = Path.ChangeExtension(Path.GetTempFileName(), ".diff");
+		File.WriteAllText(tmp, text, System.Text.Encoding.UTF8);
+
 		var viewer = Far.Api.CreateViewer();
-		viewer.Text = text;
+		viewer.FileName = tmp;
 		viewer.Title = $"{f.Owner}: {f.Name}";
+		viewer.DeleteSource = DeleteSource.File;
 		viewer.Open();
 	}
 

@@ -1,7 +1,5 @@
 using FarNet;
-using FarGit.Commands;
 using FarGit.Panels;
-using LibGit2Sharp;
 
 namespace FarGit;
 
@@ -23,7 +21,7 @@ public class Tool : ModuleTool
 			menu.Add(Const.MenuStatus, (_, _) => OpenStatus());
 			menu.Add(Const.MenuStash, (_, _) => OpenStash());
 			menu.Add(Const.MenuTags, (_, _) => OpenTags());
-			menu.AddSeparator();
+			menu.Add(string.Empty).IsSeparator = true;
 			menu.Add(Const.MenuCommit, (_, _) => OpenCommit(false));
 			menu.Add(Const.MenuAmend, (_, _) => OpenCommit(true));
 		}
@@ -58,6 +56,6 @@ public class Tool : ModuleTool
 	static void OpenCommit(bool amend) => TryOpen(() =>
 	{
 		var gitDir = Lib.GetGitDir(Far.Api.CurrentDirectory);
-		Commit.Open(gitDir, amend);
+		Commands.Commit.Open(gitDir, amend);
 	});
 }

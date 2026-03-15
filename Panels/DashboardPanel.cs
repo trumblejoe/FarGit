@@ -5,14 +5,16 @@ namespace FarGit.Panels;
 
 /// <summary>
 /// The main FarGit entry panel.
-/// Shows a repo-at-a-glance: branch, branches, staged/unstaged/untracked counts, stash, tags, remote, guide.
+/// Shows a repo-at-a-glance: branch, branches, history, status, stash, tags, remote, guide.
 ///
 /// Key bindings:
-///   Enter        – open the relevant sub-panel
-///   F2           – guided workflows (Guide Me)
-///   F5           – stage all changes
-///   F7           – open commit dialog
-///   ShiftF7      – amend last commit
+///   Enter    – open the relevant sub-panel
+///   F2       – guided workflows (Guide Me)
+///   F3       – branch manager
+///   F4       – commit timeline (history)
+///   F5       – stage all changes
+///   F7       – open commit dialog
+///   ShiftF7  – amend last commit
 /// </summary>
 public class DashboardPanel : BasePanel
 {
@@ -30,14 +32,14 @@ public class DashboardPanel : BasePanel
 		SetView(plan0);
 
 		SetKeyBars([
-			new KeyBar(KeyCode.F2, ControlKeyStates.None,      "Guide",    "Guided git workflows"),
-			new KeyBar(KeyCode.F3, ControlKeyStates.None,      "",         ""),
-			new KeyBar(KeyCode.F4, ControlKeyStates.None,      "",         ""),
-			new KeyBar(KeyCode.F5, ControlKeyStates.None,      "StageAll", "Stage all changes"),
-			new KeyBar(KeyCode.F6, ControlKeyStates.None,      "",         ""),
-			new KeyBar(KeyCode.F7, ControlKeyStates.None,      "Commit",   "Commit staged changes"),
-			new KeyBar(KeyCode.F8, ControlKeyStates.None,      "",         ""),
-			new KeyBar(KeyCode.F7, ControlKeyStates.ShiftPressed, "Amend", "Amend last commit"),
+			new KeyBar(KeyCode.F2, ControlKeyStates.None,         "Guide",    "Guided git workflows"),
+			new KeyBar(KeyCode.F3, ControlKeyStates.None,         "Branches", "Branch manager"),
+			new KeyBar(KeyCode.F4, ControlKeyStates.None,         "History",  "Commit timeline"),
+			new KeyBar(KeyCode.F5, ControlKeyStates.None,         "StageAll", "Stage all changes"),
+			new KeyBar(KeyCode.F6, ControlKeyStates.None,         "",         ""),
+			new KeyBar(KeyCode.F7, ControlKeyStates.None,         "Commit",   "Commit staged changes"),
+			new KeyBar(KeyCode.F8, ControlKeyStates.None,         "",         ""),
+			new KeyBar(KeyCode.F7, ControlKeyStates.ShiftPressed, "Amend",    "Amend last commit"),
 		]);
 	}
 
@@ -47,6 +49,7 @@ public class DashboardPanel : BasePanel
 
 	void OpenStatus()   => new StatusExplorer(GitDir).CreatePanel().OpenChild(this);
 	void OpenBranches() => new BranchExplorer(GitDir).CreatePanel().OpenChild(this);
+	void OpenHistory()  => new CommitExplorer(GitDir).CreatePanel().OpenChild(this);
 	void OpenStash()    => new StashExplorer(GitDir).CreatePanel().OpenChild(this);
 	void OpenTags()     => new TagExplorer(GitDir).CreatePanel().OpenChild(this);
 	void OpenRemote()   => new RemoteExplorer(GitDir).CreatePanel().OpenChild(this);
@@ -73,6 +76,7 @@ public class DashboardPanel : BasePanel
 		menu.Add(string.Empty).IsSeparator = true;
 		menu.Add(Const.MenuStatus,    (_, _) => OpenStatus());
 		menu.Add(Const.MenuBranches,  (_, _) => OpenBranches());
+		menu.Add(Const.MenuHistory,   (_, _) => OpenHistory());
 		menu.Add(Const.MenuRemote,    (_, _) => OpenRemote());
 		menu.Add(Const.MenuStash,     (_, _) => OpenStash());
 		menu.Add(Const.MenuTags,      (_, _) => OpenTags());
@@ -100,6 +104,10 @@ public class DashboardPanel : BasePanel
 				OpenBranches();
 				break;
 
+			case DashboardSection.History:
+				OpenHistory();
+				break;
+
 			case DashboardSection.Stash:
 				OpenStash();
 				break;
@@ -124,6 +132,14 @@ public class DashboardPanel : BasePanel
 		{
 			case KeyCode.F2 when key.Is():
 				OpenGuide();
+				return true;
+
+			case KeyCode.F3 when key.Is():
+				OpenBranches();
+				return true;
+
+			case KeyCode.F4 when key.Is():
+				OpenHistory();
 				return true;
 
 			case KeyCode.F5 when key.Is():

@@ -24,4 +24,8 @@
     <PackageReference Include="LibGit2Sharp" Version="0.31.0" />
     <PackageReference Include="LibGit2Sharp.NativeBinaries" Version="2.0.323" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Deploy the help file alongside the DLL -->
+    <None Include="FarGit.hlf" CopyToOutputDirectory="Always" />
+  </ItemGroup>
 </Project>

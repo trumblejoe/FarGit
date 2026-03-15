@@ -119,9 +119,26 @@ public class GuideFile(string category, string name, string summary, string deta
 }
 
 /// <summary>
+/// A file entry in the <see cref="CommitPanel"/>.
+/// Name: abbreviated SHA + commit message   Owner: author name
+/// Description: branch/tag labels pointing to this commit (e.g. "HEAD → main, origin/main")
+/// </summary>
+public class CommitFile(Commit commit, string labels) : FarFile
+{
+	public override string Name => $"{commit.Sha[..7]}  {commit.MessageShort}";
+	public override string? Owner => commit.Author.Name;
+	public override DateTime LastWriteTime => commit.Author.When.LocalDateTime;
+	public override string Description => labels;
+	public override FileAttributes Attributes =>
+		string.IsNullOrEmpty(labels) ? FileAttributes.Normal : FileAttributes.Directory;
+
+	public Commit Commit => commit;
+}
+
+/// <summary>
 /// Which section a <see cref="DashboardFile"/> represents.
 /// </summary>
-public enum DashboardSection { Branch, Branches, Staged, Unstaged, Untracked, Stash, Tags, Remote, Guide }
+public enum DashboardSection { Branch, Branches, History, Staged, Unstaged, Untracked, Stash, Tags, Remote, Guide }
 
 /// <summary>
 /// A row in the <see cref="DashboardPanel"/> summary view.

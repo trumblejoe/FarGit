@@ -32,6 +32,9 @@ static class Const
 	public const string TagDelete = "&Delete tag";
 	public const string TagShow = "&Show commit";
 
+	// History (commit timeline) panel
+	public const string MenuHistory = "Commit &History";
+
 	// Branch panel
 	public const string MenuBranches  = "&Branches";
 	public const string BranchCheckout = "&Switch to branch";

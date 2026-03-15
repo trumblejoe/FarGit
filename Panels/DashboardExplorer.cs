@@ -43,6 +43,17 @@ public class DashboardExplorer(string gitDir)
 
 		yield return new DashboardFile("Branches", branchesValue, branchesDetail, DashboardSection.Branches);
 
+		// --- History row ---
+		var commitCount = repo.Head.Tip is not null
+			? repo.Head.Commits.Take(1001).Count()  // cap scan at 1001 to avoid huge repos hanging
+			: 0;
+		var historyValue  = commitCount > 1000 ? "1000+ commits" : $"{commitCount} commit{(commitCount == 1 ? "" : "s")}";
+		var historyDetail = repo.Head.Tip is not null
+			? $"Enter to browse timeline  ·  HEAD: {repo.Head.Tip.Sha[..7]}"
+			: "no commits yet";
+
+		yield return new DashboardFile("History", historyValue, historyDetail, DashboardSection.History);
+
 		// --- Working tree status ---
 		if (!repo.Info.IsBare)
 		{
